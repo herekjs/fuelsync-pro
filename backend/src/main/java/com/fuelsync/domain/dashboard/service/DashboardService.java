@@ -31,8 +31,6 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class DashboardService {
 
-    private static final int RUNWAY_DAYS = 3;
-
     /** 소진예상(일) 및 기준일·마지막 판매일 */
     private record StockRunwayDaysInfo(Double days, LocalDate baselineDate, LocalDate lastSaleDate) {}
 
@@ -81,7 +79,11 @@ public class DashboardService {
                 .build();
     }
 
-    private List<SalesStatsDto.MonthlyStat> pivotPeriodStats(List<Map<String, Object>> rows) {
+    /** 기간 키(월·주·일)별 휘발유·경유 합계 한 줄 */
+    private record FuelTotals(String key, double gasoline, double diesel) {}
+
+    /** period_key / fuel_type / total_liter 행을 기간 키 오름차순으로 휘발유·경유 열로 피벗한다. */
+    private List<FuelTotals> pivotByFuel(List<Map<String, Object>> rows) {
         TreeSet<String> keys = new TreeSet<>();
         Map<String, BigDecimal> gas = new HashMap<>();
         Map<String, BigDecimal> die = new HashMap<>();
@@ -99,73 +101,34 @@ public class DashboardService {
                 die.put(pk, lit);
             }
         }
-        List<SalesStatsDto.MonthlyStat> out = new ArrayList<>();
+        List<FuelTotals> out = new ArrayList<>();
         for (String k : keys) {
-            out.add(SalesStatsDto.MonthlyStat.builder()
-                    .month(k)
-                    .gasoline(gas.getOrDefault(k, BigDecimal.ZERO).doubleValue())
-                    .diesel(die.getOrDefault(k, BigDecimal.ZERO).doubleValue())
-                    .build());
+            out.add(new FuelTotals(k,
+                    gas.getOrDefault(k, BigDecimal.ZERO).doubleValue(),
+                    die.getOrDefault(k, BigDecimal.ZERO).doubleValue()));
         }
         return out;
+    }
+
+    private List<SalesStatsDto.MonthlyStat> pivotPeriodStats(List<Map<String, Object>> rows) {
+        return pivotByFuel(rows).stream()
+                .map(t -> SalesStatsDto.MonthlyStat.builder()
+                        .month(t.key()).gasoline(t.gasoline()).diesel(t.diesel()).build())
+                .toList();
     }
 
     private List<SalesStatsDto.WeeklyStat> pivotWeeklyStats(List<Map<String, Object>> rows) {
-        TreeSet<String> keys = new TreeSet<>();
-        Map<String, BigDecimal> gas = new HashMap<>();
-        Map<String, BigDecimal> die = new HashMap<>();
-        for (Map<String, Object> row : rows) {
-            String pk = periodKeyToString(row.get("period_key"));
-            if (pk.isEmpty()) {
-                continue;
-            }
-            keys.add(pk);
-            String ft = String.valueOf(row.get("fuel_type"));
-            BigDecimal lit = toBigDecimalValue(row.get("total_liter"));
-            if ("GASOLINE".equals(ft)) {
-                gas.put(pk, lit);
-            } else if ("DIESEL".equals(ft)) {
-                die.put(pk, lit);
-            }
-        }
-        List<SalesStatsDto.WeeklyStat> out = new ArrayList<>();
-        for (String k : keys) {
-            out.add(SalesStatsDto.WeeklyStat.builder()
-                    .weekStart(k)
-                    .gasoline(gas.getOrDefault(k, BigDecimal.ZERO).doubleValue())
-                    .diesel(die.getOrDefault(k, BigDecimal.ZERO).doubleValue())
-                    .build());
-        }
-        return out;
+        return pivotByFuel(rows).stream()
+                .map(t -> SalesStatsDto.WeeklyStat.builder()
+                        .weekStart(t.key()).gasoline(t.gasoline()).diesel(t.diesel()).build())
+                .toList();
     }
 
     private List<SalesStatsDto.DailyStat> pivotDailyStats(List<Map<String, Object>> rows) {
-        TreeSet<String> keys = new TreeSet<>();
-        Map<String, BigDecimal> gas = new HashMap<>();
-        Map<String, BigDecimal> die = new HashMap<>();
-        for (Map<String, Object> row : rows) {
-            String pk = periodKeyToString(row.get("period_key"));
-            if (pk.isEmpty()) {
-                continue;
-            }
-            keys.add(pk);
-            String ft = String.valueOf(row.get("fuel_type"));
-            BigDecimal lit = toBigDecimalValue(row.get("total_liter"));
-            if ("GASOLINE".equals(ft)) {
-                gas.put(pk, lit);
-            } else if ("DIESEL".equals(ft)) {
-                die.put(pk, lit);
-            }
-        }
-        List<SalesStatsDto.DailyStat> out = new ArrayList<>();
-        for (String k : keys) {
-            out.add(SalesStatsDto.DailyStat.builder()
-                    .date(k)
-                    .gasoline(gas.getOrDefault(k, BigDecimal.ZERO).doubleValue())
-                    .diesel(die.getOrDefault(k, BigDecimal.ZERO).doubleValue())
-                    .build());
-        }
-        return out;
+        return pivotByFuel(rows).stream()
+                .map(t -> SalesStatsDto.DailyStat.builder()
+                        .date(t.key()).gasoline(t.gasoline()).diesel(t.diesel()).build())
+                .toList();
     }
 
     private List<SalesStatsDto.DailyDiffStat> pivotDailyDiffStats(List<Map<String, Object>> rows) {
@@ -255,7 +218,6 @@ public class DashboardService {
         BigDecimal todaySoldLiter = toBigDecimal(todayData, "soldLiter");
         BigDecimal todayRevenue   = toBigDecimal(todayData, "revenue");
 
-        Double runwayHours = calculateStockRunway(tank);
         StockRunwayDaysInfo runwayDaysInfo = computeStockRunwayDaysInfo(tank);
 
         return DashboardDto.TankSummary.builder()
@@ -268,32 +230,12 @@ public class DashboardService {
                 .temperature(tank.getTemperature())
                 .waterLevel(tank.getWaterLevel())
                 .status(tank.getStatus().name())
-                .stockRunwayHours(runwayHours)
                 .stockRunwayDays(runwayDaysInfo.days())
                 .stockRunwayBaselineDate(runwayDaysInfo.baselineDate())
                 .lastSaleDate(runwayDaysInfo.lastSaleDate())
                 .todaySoldLiter(todaySoldLiter)
                 .todayRevenue(todayRevenue)
                 .build();
-    }
-
-    /**
-     * Stock Runway: 최근 3일 시간대별 평균 판매량 기반 소진 예상 시간 계산
-     */
-    private Double calculateStockRunway(Tank tank) {
-        LocalDateTime since = LocalDateTime.now().minusDays(RUNWAY_DAYS);
-        List<Map<String, Object>> hourlyData = transactionMapper.findHourlyLiterSince(tank.getTankId(), since);
-
-        if (hourlyData.isEmpty()) return null;
-
-        double totalLiters = hourlyData.stream()
-                .mapToDouble(row -> ((Number) row.get("totalLiter")).doubleValue())
-                .sum();
-
-        double avgLiterPerHour = totalLiters / (RUNWAY_DAYS * 24.0);
-        if (avgLiterPerHour == 0) return null;
-
-        return tank.getCurrentVolume().doubleValue() / avgLiterPerHour;
     }
 
     /**

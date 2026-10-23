@@ -50,16 +50,6 @@
           AND tx_datetime >= #{startOfDay}
     </select>
 
-    <!-- Stock Runway 계산용: 시간대별 판매량 -->
-    <select id="findHourlyLiterSince" resultType="map">
-        SELECT HOUR(tx_datetime) AS hour,
-               SUM(liter)        AS totalLiter
-        FROM tb_transaction
-        WHERE tank_id = #{tankId}
-          AND tx_datetime >= #{since}
-        GROUP BY HOUR(tx_datetime)
-    </select>
-
     <select id="sumLiterSince" resultType="java.math.BigDecimal">
         SELECT COALESCE(SUM(liter), 0)
         FROM tb_transaction

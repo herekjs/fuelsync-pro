@@ -21,9 +21,6 @@ public interface TransactionMapper {
     Map<String, Object> findTodaySummaryByTank(@Param("tankId") Long tankId,
                                                @Param("startOfDay") LocalDateTime startOfDay);
 
-    List<Map<String, Object>> findHourlyLiterSince(@Param("tankId") Long tankId,
-                                                   @Param("since") LocalDateTime since);
-
     BigDecimal sumLiterSince(@Param("tankId") Long tankId,
                             @Param("since") LocalDateTime since);
 

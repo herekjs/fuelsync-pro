@@ -94,7 +94,6 @@ export interface ExcelUploadRow {
 }
 
 export interface DashboardTankSummary extends Tank {
-  stockRunwayHours: number | null;
   stockRunwayDays: number | null;
   /** 소진예상(일) 기준 = 최근 입고일 (YYYY-MM-DD) */
   stockRunwayBaselineDate: string | null;
