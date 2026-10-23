@@ -970,97 +970,16 @@ public class ExcelUploadService {
         };
     }
 
+    /** C·D·J·K 등 리터 열: 0 이상, 음수는 무시 */
     private BigDecimal parseLiterCell(Cell cell) {
-        if (cell == null || cell.getCellType() == CellType.BLANK) {
-            return null;
-        }
-        try {
-            double v;
-            switch (cell.getCellType()) {
-                case NUMERIC -> v = cell.getNumericCellValue();
-                case STRING -> {
-                    String s = cell.getStringCellValue().replace(",", "").trim();
-                    if (s.isEmpty() || "-".equals(s)) {
-                        return null;
-                    }
-                    v = Double.parseDouble(s);
-                }
-                case FORMULA -> {
-                    CellType cached = cell.getCachedFormulaResultType();
-                    if (cached == CellType.NUMERIC) {
-                        v = cell.getNumericCellValue();
-                    } else if (cached == CellType.STRING) {
-                        String s = cell.getStringCellValue().replace(",", "").trim();
-                        if (s.isEmpty() || "-".equals(s)) {
-                            return null;
-                        }
-                        v = Double.parseDouble(s);
-                    } else {
-                        return null;
-                    }
-                }
-                default -> {
-                    return null;
-                }
-            }
-            if (Double.isNaN(v) || Double.isInfinite(v)) {
-                return null;
-            }
-            BigDecimal bd = BigDecimal.valueOf(v);
-            if (bd.compareTo(BigDecimal.ZERO) < 0) {
-                return null;
-            }
-            return bd;
-        } catch (Exception e) {
-            return null;
-        }
+        BigDecimal v = parseNumericCell(cell);
+        return v == null || v.compareTo(BigDecimal.ZERO) < 0 ? null : v;
     }
 
-    /** G·H·N·O 열: 리터당 가격(원) */
+    /** G·H·N·O 열: 리터당 가격(원), 0 이하는 무시 */
     private BigDecimal parsePriceCell(Cell cell) {
-        if (cell == null || cell.getCellType() == CellType.BLANK) {
-            return null;
-        }
-        try {
-            double v;
-            switch (cell.getCellType()) {
-                case NUMERIC -> v = cell.getNumericCellValue();
-                case STRING -> {
-                    String s = cell.getStringCellValue().replace(",", "").trim();
-                    if (s.isEmpty() || "-".equals(s)) {
-                        return null;
-                    }
-                    v = Double.parseDouble(s);
-                }
-                case FORMULA -> {
-                    CellType cached = cell.getCachedFormulaResultType();
-                    if (cached == CellType.NUMERIC) {
-                        v = cell.getNumericCellValue();
-                    } else if (cached == CellType.STRING) {
-                        String s = cell.getStringCellValue().replace(",", "").trim();
-                        if (s.isEmpty() || "-".equals(s)) {
-                            return null;
-                        }
-                        v = Double.parseDouble(s);
-                    } else {
-                        return null;
-                    }
-                }
-                default -> {
-                    return null;
-                }
-            }
-            if (Double.isNaN(v) || Double.isInfinite(v)) {
-                return null;
-            }
-            BigDecimal bd = BigDecimal.valueOf(v);
-            if (bd.compareTo(BigDecimal.ZERO) <= 0) {
-                return null;
-            }
-            return bd;
-        } catch (Exception e) {
-            return null;
-        }
+        BigDecimal v = parseNumericCell(cell);
+        return v == null || v.compareTo(BigDecimal.ZERO) <= 0 ? null : v;
     }
 
     /** W·Y: 실측 재고(L), 0 이상 */
@@ -1074,6 +993,14 @@ public class ExcelUploadService {
 
     /** X·Z: 재고 조정값(L), 음수·0·양수 */
     private BigDecimal parseSignedAdjLiter(Cell cell) {
+        return parseNumericCell(cell);
+    }
+
+    /**
+     * 숫자 셀(숫자·쉼표 포함 문자열·수식 캐시값)을 BigDecimal로 읽는다.
+     * 빈 셀, "-", 숫자가 아닌 값, NaN/무한대는 null. 부호 검증은 호출하는 쪽에서 한다.
+     */
+    private BigDecimal parseNumericCell(Cell cell) {
         if (cell == null || cell.getCellType() == CellType.BLANK) {
             return null;
         }
@@ -1082,22 +1009,22 @@ public class ExcelUploadService {
             switch (cell.getCellType()) {
                 case NUMERIC -> v = cell.getNumericCellValue();
                 case STRING -> {
-                    String s = cell.getStringCellValue().replace(",", "").trim();
-                    if (s.isEmpty() || "-".equals(s)) {
+                    Double parsed = parseNumericText(cell.getStringCellValue());
+                    if (parsed == null) {
                         return null;
                     }
-                    v = Double.parseDouble(s);
+                    v = parsed;
                 }
                 case FORMULA -> {
                     CellType cached = cell.getCachedFormulaResultType();
                     if (cached == CellType.NUMERIC) {
                         v = cell.getNumericCellValue();
                     } else if (cached == CellType.STRING) {
-                        String s = cell.getStringCellValue().replace(",", "").trim();
-                        if (s.isEmpty() || "-".equals(s)) {
+                        Double parsed = parseNumericText(cell.getStringCellValue());
+                        if (parsed == null) {
                             return null;
                         }
-                        v = Double.parseDouble(s);
+                        v = parsed;
                     } else {
                         return null;
                     }
@@ -1113,5 +1040,14 @@ public class ExcelUploadService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /** 쉼표를 제거하고 숫자로 변환. 빈 문자열·"-"는 null, 숫자가 아니면 NumberFormatException. */
+    private Double parseNumericText(String raw) {
+        String s = raw.replace(",", "").trim();
+        if (s.isEmpty() || "-".equals(s)) {
+            return null;
+        }
+        return Double.parseDouble(s);
     }
 }
