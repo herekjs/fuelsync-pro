@@ -82,4 +82,13 @@
           AND input_type = 'EXCEL'
     </select>
 
+
+    <select id="sumExcelVolumeByTankAndDates" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(in_volume), 0)
+        FROM tb_stock_in
+        WHERE tank_id = #{tankId}
+          AND input_type = 'EXCEL'
+          AND in_date IN
+        <foreach collection="dates" item="d" open="(" separator="," close=")">#{d}</foreach>
+    </select>
 </mapper>

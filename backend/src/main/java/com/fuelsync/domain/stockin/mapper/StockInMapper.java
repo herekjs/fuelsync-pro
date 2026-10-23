@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Param;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 
 @Mapper
@@ -31,4 +32,8 @@ public interface StockInMapper {
 
     /** 증분 업로드: 해당 탱크·일자에 EXCEL 입고가 이미 있는지 */
     int countExcelByTankAndDate(@Param("tankId") Long tankId, @Param("inDate") LocalDate inDate);
+
+    /** 덮어쓰기: 지워질 EXCEL 입고량 합계 (잔량에 이미 더해진 양) */
+    BigDecimal sumExcelVolumeByTankAndDates(@Param("tankId") Long tankId,
+                                            @Param("dates") Collection<LocalDate> dates);
 }

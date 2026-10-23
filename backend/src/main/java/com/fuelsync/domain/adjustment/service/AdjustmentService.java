@@ -57,6 +57,10 @@ public class AdjustmentService {
         return insertAdjustment(request, StockAdjustment.InputType.WEB, true);
     }
 
+    public boolean existsNonExcelByTankAndDate(Long tankId, LocalDate adjDate) {
+        return adjustmentMapper.existsNonExcelByTankIdAndAdjDate(tankId, adjDate);
+    }
+
     public boolean existsByTankAndDate(Long tankId, LocalDate adjDate) {
         return adjustmentMapper.existsByTankIdAndAdjDate(tankId, adjDate);
     }
@@ -72,6 +76,12 @@ public class AdjustmentService {
         }
         // 엑셀 업로드는 전체가 끝난 뒤 탱크 상태를 한 번만 발행하므로 여기서는 발행하지 않는다.
         return Optional.of(insertAdjustment(request, StockAdjustment.InputType.EXCEL, false));
+    }
+
+    /** 덮어쓰기로 지워질 해당 일자들의 엑셀 재고 조정 차이(physical − book) 합계. 잔량에 이미 반영된 양입니다. */
+    public BigDecimal sumExcelDiffByTankAndDates(Long tankId, java.util.Collection<LocalDate> dates) {
+        BigDecimal sum = adjustmentMapper.sumExcelDiffByTankAndDates(tankId, dates);
+        return sum != null ? sum : BigDecimal.ZERO;
     }
 
     /** 통합 엑셀 덮어쓰기 시 해당 일자·탱크의 엑셀 재고 조정만 삭제. 부모 트랜잭션에 반드시 참여합니다. */

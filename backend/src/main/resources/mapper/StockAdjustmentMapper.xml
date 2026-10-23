@@ -47,6 +47,14 @@
           AND adj_date = #{adjDate}
     </select>
 
+    <select id="existsNonExcelByTankIdAndAdjDate" resultType="boolean">
+        SELECT COUNT(*) > 0
+        FROM tb_stock_adjustment
+        WHERE tank_id = #{tankId}
+          AND adj_date = #{adjDate}
+          AND input_type &lt;&gt; 'EXCEL'
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="adjId">
         INSERT INTO tb_stock_adjustment
             (tank_id, book_stock, physical_stock, diff_volume, diff_amount,
@@ -65,4 +73,13 @@
           AND input_type = 'EXCEL'
     </delete>
 
+
+    <select id="sumExcelDiffByTankAndDates" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(diff_volume), 0)
+        FROM tb_stock_adjustment
+        WHERE tank_id = #{tankId}
+          AND input_type = 'EXCEL'
+          AND adj_date IN
+        <foreach collection="dates" item="d" open="(" separator="," close=")">#{d}</foreach>
+    </select>
 </mapper>

@@ -175,4 +175,13 @@
         ORDER BY sub.dow ASC, sub.fuel_type ASC
     </select>
 
+
+    <select id="sumExcelLiterByTankAndDates" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(liter), 0)
+        FROM tb_transaction
+        WHERE tank_id = #{tankId}
+          AND input_type = 'EXCEL'
+          AND DATE(tx_datetime) IN
+        <foreach collection="dates" item="d" open="(" separator="," close=")">#{d}</foreach>
+    </select>
 </mapper>

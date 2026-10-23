@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -51,4 +52,8 @@ public interface TransactionMapper {
 
     /** 증분 업로드: 해당 탱크·일자에 EXCEL 판매가 이미 있는지 */
     int countExcelByTankAndDate(@Param("tankId") Long tankId, @Param("saleDate") LocalDate saleDate);
+
+    /** 덮어쓰기: 지워질 EXCEL 판매 리터 합계 (잔량에서 이미 차감된 양) */
+    BigDecimal sumExcelLiterByTankAndDates(@Param("tankId") Long tankId,
+                                           @Param("dates") Collection<LocalDate> dates);
 }

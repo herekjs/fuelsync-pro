@@ -45,8 +45,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -171,8 +173,16 @@ public class ExcelUploadService {
                 .orElseThrow(() -> new FuelSyncException(FuelSyncException.Tank.NOT_FOUND,
                         "탱크를 찾을 수 없습니다. tankId=" + dieselTankId));
 
+        // 덮어쓰기는 해당 일자의 기존 엑셀 기록을 지우므로, 그 기록이 이미 잔량에 준 영향을 먼저 되돌린 기준으로 계산한다.
+        Set<LocalDate> uploadDates = parsedRows.stream()
+                .map(ParsedSheetRow::date)
+                .collect(Collectors.toCollection(TreeSet::new));
+        BigDecimal gasReversal = incrementalOnly ? BigDecimal.ZERO : excelReversalDelta(gasTankId, uploadDates);
+        BigDecimal dieselReversal = incrementalOnly ? BigDecimal.ZERO : excelReversalDelta(dieselTankId, uploadDates);
+
         UploadSimulation simulation = simulateUpload(
-                parsedRows, gasTankId, dieselTankId, gasTank, dieselTank, incrementalOnly, alignOpeningFromExcel);
+                parsedRows, gasTankId, dieselTankId, gasTank, dieselTank, incrementalOnly, alignOpeningFromExcel,
+                gasReversal, dieselReversal);
 
         return persistSimulation(simulation, safeName, incrementalOnly, alignOpeningFromExcel);
     }
@@ -187,9 +197,11 @@ public class ExcelUploadService {
             Tank gasTank,
             Tank dieselTank,
             boolean incrementalOnly,
-            boolean alignOpeningFromExcel) {
-        Tank simGas = copyTank(gasTank);
-        Tank simDiesel = copyTank(dieselTank);
+            boolean alignOpeningFromExcel,
+            BigDecimal gasReversal,
+            BigDecimal dieselReversal) {
+        Tank simGas = revertExcelEffect(copyTank(gasTank), gasReversal, "휘발유");
+        Tank simDiesel = revertExcelEffect(copyTank(dieselTank), dieselReversal, "경유");
         boolean openingAligned = alignOpeningFromExcel && !incrementalOnly;
 
         if (openingAligned) {
@@ -302,7 +314,7 @@ public class ExcelUploadService {
                 BigDecimal book = simGas.getCurrentVolume().setScale(2, RoundingMode.HALF_UP);
                 BigDecimal physical = pr.adjGasPhys().setScale(2, RoundingMode.HALF_UP);
                 if (physical.compareTo(book) != 0) {
-                    if (adjustmentService.existsByTankAndDate(gasTankId, d)) {
+                    if (adjustmentExists(gasTankId, d, incrementalOnly)) {
                         adjustmentSkipped++;
                     } else {
                         gasAdj = new AdjustmentDto.CreateRequest(gasTankId, book, physical, d, null);
@@ -323,7 +335,7 @@ public class ExcelUploadService {
                 BigDecimal book = simDiesel.getCurrentVolume().setScale(2, RoundingMode.HALF_UP);
                 BigDecimal physical = pr.adjDiePhys().setScale(2, RoundingMode.HALF_UP);
                 if (physical.compareTo(book) != 0) {
-                    if (adjustmentService.existsByTankAndDate(dieselTankId, d)) {
+                    if (adjustmentExists(dieselTankId, d, incrementalOnly)) {
                         adjustmentSkipped++;
                     } else {
                         dieselAdj = new AdjustmentDto.CreateRequest(dieselTankId, book, physical, d, null);
@@ -383,7 +395,42 @@ public class ExcelUploadService {
                 dieselDailyLevelUpserted,
                 openingAligned,
                 openingGasVolume,
-                openingDieselVolume);
+                openingDieselVolume,
+                gasReversal,
+                dieselReversal);
+    }
+
+    /** 신규 일자만 추가하면 어떤 조정이든, 덮어쓰기면 (곧 지워질) 엑셀 조정을 뺀 조정만 이미 있는 것으로 본다. */
+    private boolean adjustmentExists(Long tankId, LocalDate date, boolean incrementalOnly) {
+        return incrementalOnly
+                ? adjustmentService.existsByTankAndDate(tankId, date)
+                : adjustmentService.existsNonExcelByTankAndDate(tankId, date);
+    }
+
+    /**
+     * 덮어쓰기로 지워질 기존 엑셀 기록(판매·입고·재고 조정)이 잔량에 준 영향의 반대 값.
+     * 판매는 잔량을 줄였고, 입고·조정은 늘렸으므로 되돌리면 (판매 − 입고 − 조정) 만큼 바뀐다.
+     */
+    private BigDecimal excelReversalDelta(Long tankId, Set<LocalDate> dates) {
+        BigDecimal sold = coalesce(transactionMapper.sumExcelLiterByTankAndDates(tankId, dates));
+        BigDecimal stockIn = coalesce(stockInMapper.sumExcelVolumeByTankAndDates(tankId, dates));
+        BigDecimal adjustment = coalesce(adjustmentService.sumExcelDiffByTankAndDates(tankId, dates));
+        return sold.subtract(stockIn).subtract(adjustment).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private Tank revertExcelEffect(Tank tank, BigDecimal delta, String label) {
+        if (delta == null || delta.signum() == 0) {
+            return tank;
+        }
+        BigDecimal target = tank.getCurrentVolume().add(delta).setScale(2, RoundingMode.HALF_UP);
+        try {
+            tank.updateCapacityAndVolume(tank.getMaxCapacity(), target);
+        } catch (FuelSyncException e) {
+            throw new FuelSyncException(e.getErrorCode(),
+                    label + " 탱크에서 기존 엑셀 기록을 되돌리다 잔량이 허용 범위를 벗어납니다. 계산 잔량: "
+                            + target + "L (" + e.getMessage() + ")");
+        }
+        return tank;
     }
 
     /**
@@ -440,6 +487,16 @@ public class ExcelUploadService {
         Tank dieselTank = tankMapper.findByIdForUpdate(simulation.dieselTankId())
                 .orElseThrow(() -> new FuelSyncException(FuelSyncException.Tank.NOT_FOUND,
                         "탱크를 찾을 수 없습니다. tankId=" + simulation.dieselTankId()));
+
+        // 시뮬레이션과 같은 기준에서 시작하도록, 지운 기존 엑셀 기록의 잔량 영향을 되돌린다.
+        if (simulation.gasReversal().signum() != 0) {
+            revertExcelEffect(gasTank, simulation.gasReversal(), "휘발유");
+            tankMapper.updateVolume(gasTank);
+        }
+        if (simulation.dieselReversal().signum() != 0) {
+            revertExcelEffect(dieselTank, simulation.dieselReversal(), "경유");
+            tankMapper.updateVolume(dieselTank);
+        }
 
         if (simulation.openingAligned()) {
             applyOpeningVolume(gasTank, simulation.openingGasVolume());
@@ -863,7 +920,9 @@ public class ExcelUploadService {
             boolean dieselDailyLevelUpserted,
             boolean openingAligned,
             BigDecimal openingGasVolume,
-            BigDecimal openingDieselVolume
+            BigDecimal openingDieselVolume,
+            BigDecimal gasReversal,
+            BigDecimal dieselReversal
     ) {}
 
     private record OpeningSeed(
