@@ -23,6 +23,8 @@ public interface OperationalDataPurgeMapper {
 
     void resetExcelUploadBatchAutoIncrement();
 
+    void resetTankDailyLevelAutoIncrement();
+
     void resetTransactionAutoIncrement();
 
     void resetStockInAutoIncrement();

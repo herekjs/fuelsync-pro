@@ -162,7 +162,7 @@ export default function ExcelUploadLogPage() {
   const handlePurgeOperationalData = () => {
     if (
       !window.confirm(
-        '엑셀 업로드 행·배치, 판매(tb_transaction), 입고(tb_stock_in), 재고조정(tb_stock_adjustment), 유가이력(tb_price_history)을 모두 삭제하고 AUTO_INCREMENT를 1로 초기화합니다. 탱크·판매가·사용자 등은 그대로입니다. 계속할까요?',
+        '엑셀 업로드 행·배치, 일별 마감 잔량(tb_tank_daily_level), 판매(tb_transaction), 입고(tb_stock_in), 재고조정(tb_stock_adjustment), 유가이력(tb_price_history)을 모두 삭제하고 AUTO_INCREMENT를 1로 초기화합니다. 탱크(현재 잔량 포함)·판매가·사용자 등은 그대로입니다. 계속할까요?',
       )
     ) {
       return;

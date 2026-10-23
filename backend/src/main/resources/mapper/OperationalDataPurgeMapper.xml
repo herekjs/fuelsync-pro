@@ -38,6 +38,10 @@
         ALTER TABLE tb_excel_upload_batch AUTO_INCREMENT = 1
     </update>
 
+    <update id="resetTankDailyLevelAutoIncrement">
+        ALTER TABLE tb_tank_daily_level AUTO_INCREMENT = 1
+    </update>
+
     <update id="resetTransactionAutoIncrement">
         ALTER TABLE tb_transaction AUTO_INCREMENT = 1
     </update>
