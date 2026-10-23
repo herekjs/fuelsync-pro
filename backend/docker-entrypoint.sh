@@ -10,14 +10,20 @@ mariadbd --user=mysql --bind-address=127.0.0.1 \
   --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci \
   --innodb-buffer-pool-size=32M --performance-schema=OFF --max-connections=30 &
 
+echo "[entrypoint] waiting for MariaDB..."
 for i in $(seq 1 60); do
-  mariadb-admin ping --silent 2>/dev/null && break
+  if mariadb --protocol=socket -uroot -e "SELECT 1" >/dev/null 2>&1; then
+    echo "[entrypoint] MariaDB is ready"
+    break
+  fi
   sleep 1
 done
 
-mariadb -e "CREATE DATABASE fuelsync CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+echo "[entrypoint] initializing database"
+mariadb --protocol=socket -uroot -e "CREATE DATABASE fuelsync CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER 'fuelsync'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';
 GRANT ALL PRIVILEGES ON fuelsync.* TO 'fuelsync'@'localhost';"
-mariadb --default-character-set=utf8mb4 fuelsync < /app/init.sql
+mariadb --protocol=socket -uroot --default-character-set=utf8mb4 fuelsync < /app/init.sql
+echo "[entrypoint] database initialized, starting app"
 
 exec java -Xmx256m -jar /app/app.war
