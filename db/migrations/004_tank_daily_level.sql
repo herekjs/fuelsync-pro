@@ -1,4 +1,5 @@
-CREATE TABLE tb_tank_daily_level (
+-- 기존 DB에 일별 마감 잔량 테이블 추가 (schema.sql 새 설치에는 이미 포함됨)
+CREATE TABLE IF NOT EXISTS tb_tank_daily_level (
     level_id           BIGINT         NOT NULL AUTO_INCREMENT,
     tank_id            BIGINT         NOT NULL,
     level_date         DATE           NOT NULL,

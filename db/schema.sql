@@ -1,9 +1,11 @@
 -- ============================================================
--- FuelSync Pro — MariaDB 통합 초기화 (구 db/V*.sql 일원화)
+-- FuelSync Pro — MariaDB 스키마 (최종 상태, 새 설치용)
 --
--- 사용법
---   • 전체 초기화: 이 파일 전체 실행 (DROP 후 CREATE + 탱크 시드)
---   • 데이터만 비우기: `purge_data_only.sql` 실행, 또는 이 파일 하단 [선택 B] 주석 해제
+-- 사용법 (db/ 폴더가 SQL의 유일한 위치입니다)
+--   • 새로 설치:   schema.sql → seed.sql 순서로 실행 (기존 tb_* 테이블은 DROP 후 재생성)
+--   • 데이터만 비우기: purge_data_only.sql (스키마·탱크·사용자 등 기준 데이터는 유지)
+--   • 기존 DB 업그레이드: migrations/ 의 번호 순서대로, 아직 적용하지 않은 것만 실행
+--   • 스키마를 바꿀 때는 이 파일과 migrations/NNN_*.sql 을 함께 수정합니다.
 -- ============================================================
 
 SET NAMES utf8mb4;
@@ -13,6 +15,7 @@ SET NAMES utf8mb4;
 -- =============================================================================
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS tb_tank_daily_level;
 DROP TABLE IF EXISTS tb_excel_upload_row;
 DROP TABLE IF EXISTS tb_excel_upload_batch;
 DROP TABLE IF EXISTS tb_transaction;
@@ -247,74 +250,3 @@ CREATE TABLE tb_tank_daily_level (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
-
--- =============================================================================
--- [3] 기준 시드 — 탱크 · 주유소 · 판매가 · 데모 거래/입고·오피넷식 가격이력
---    • 탱크 tank_id 순서: 1~2 휘발유, 3~4 경유, 5 LPG (엑셀 업로드는 유종별 최소 tank_id 사용)
---    • 주유소 KATECH 좌표는 데모용 — 실운영 시 오피넷 지도 등으로 본인 좌표로 교체
---    • 아래 입고·판매(tb_stock_in / tb_transaction)는 차트 데모용이며 tb_tank.current_volume 과
---      장부상 재고는 일치하지 않을 수 있음
---    • 로그인: username jsan / password 1234 (password_hash 는 BCrypt)
--- =============================================================================
-INSERT INTO tb_user (username, password_hash, role)
-VALUES (
-    'jsan',
-    '$2a$10$hZt66xgrrf9btUFSnCKN8uQNpKR5xbGcUMSBuA/eMO8IZZlJBccFG',
-    'OWNER'
-);
-
-INSERT INTO tb_tank (tank_name, fuel_type, max_capacity, current_volume, threshold_warning, threshold_danger, status)
-VALUES
-    ('Tank G', 'GASOLINE', 50000.00, 34831.00, 20, 10, 'NORMAL'),
-    ('Tank D', 'DIESEL',   50000.00, 32989.00, 20, 10, 'NORMAL');
-
-INSERT INTO tb_station_info (station_name, address, katech_x, katech_y, phone, brand)
-VALUES (
-    'FuelSync 데모 주유소',
-    '광주광역시 서구 시청로 데모',
-    291165,
-    189065,
-    '062-000-0000',
-    '데모브랜드'
-);
-
-INSERT INTO tb_selling_price (fuel_type, selling_price, effective_from)
-VALUES
-    ('GASOLINE', 1999.00, '2026-01-01'),
-    ('DIESEL',   1999.00, '2026-01-01');
-
-
-
--- ############################################################################
--- [선택 B] 스키마 유지 — 누적 데이터만 삭제 (과거 기록 초기화)
-
--- 이미 [1][2]로 최신 스키마가 있다고 가정하고, 행만 비웁니다.
--- 실행 후 탱크·주유소 등은 비어 있거나 그대로이므로, 필요 시 [3] 시드나 앱에서 다시 등록하세요.
--- ############################################################################
-
-SET FOREIGN_KEY_CHECKS = 0;
-
-DELETE FROM tb_excel_upload_row;
-DELETE FROM tb_excel_upload_batch;
-DELETE FROM tb_tank_daily_level;
-DELETE FROM tb_transaction;
-DELETE FROM tb_stock_in;
-DELETE FROM tb_stock_adjustment;
-DELETE FROM tb_price_history;
-DELETE FROM tb_selling_price;
-DELETE FROM tb_station_info;
-DELETE FROM tb_tank;
-
-SET FOREIGN_KEY_CHECKS = 1;
-
-ALTER TABLE tb_excel_upload_row AUTO_INCREMENT = 1;
-ALTER TABLE tb_excel_upload_batch AUTO_INCREMENT = 1;
-ALTER TABLE tb_transaction AUTO_INCREMENT = 1;
-ALTER TABLE tb_stock_in AUTO_INCREMENT = 1;
-ALTER TABLE tb_stock_adjustment AUTO_INCREMENT = 1;
-ALTER TABLE tb_price_history AUTO_INCREMENT = 1;
-ALTER TABLE tb_selling_price AUTO_INCREMENT = 1;
-ALTER TABLE tb_station_info AUTO_INCREMENT = 1;
-ALTER TABLE tb_user AUTO_INCREMENT = 1;
-ALTER TABLE tb_tank AUTO_INCREMENT = 1;
-

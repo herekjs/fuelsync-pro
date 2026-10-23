@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-FuelSync Pro — gas-station fuel inventory / price management. Monorepo: `backend/` (Spring Boot 3.2.5, Java 17, MyBatis, MariaDB, STOMP WebSocket, Maven, packaged as **WAR**) and `frontend/` (React 18, TypeScript, Vite 5, Tailwind 3, ApexCharts). `db/` holds DDL (`init.sql` drops/recreates all `tb_*` tables + seed; `purge_data_only.sql` wipes data but keeps schema). The same two SQL files are duplicated in `backend/src/main/resources/db/` — keep them in sync. Docs (README.md, ARCHITECTURE.md, SCREEN_FEATURES.md) are written in Korean.
+FuelSync Pro — gas-station fuel inventory / price management. Monorepo: `backend/` (Spring Boot 3.2.5, Java 17, MyBatis, MariaDB, STOMP WebSocket, Maven, packaged as **WAR**) and `frontend/` (React 18, TypeScript, Vite 5, Tailwind 3, ApexCharts). `db/` is the single home for SQL: `schema.sql` (drops/recreates all `tb_*` tables), `seed.sql` (demo data incl. the `jsan` login), `purge_data_only.sql` (wipes history but keeps schema/base data), and `migrations/NNN_*.sql` (upgrade an existing DB). When changing the schema, update `schema.sql` and add a numbered migration together. Docs (README.md, ARCHITECTURE.md, SCREEN_FEATURES.md) are written in Korean.
 
 ## Commands
 
@@ -23,7 +23,7 @@ npm run dev      # http://localhost:5173, Vite proxies /api and /ws -> localhost
 npm run build    # tsc && vite build — the only type check/lint; no test runner or linter configured
 ```
 
-Database: MariaDB, schema `fuelsync`; run `db/init.sql` to create tables and seed. `application.yml` connects as `root`/`1234` on localhost:3306.
+Database: MariaDB, schema `fuelsync`; run `db/schema.sql` then `db/seed.sql` to create tables and seed. `application.yml` connects as `root`/`1234` on localhost:3306.
 
 `mvn package` runs `frontend-maven-plugin` (installs Node v20.15.1 into `backend/target/node`, runs `npm install` + `npm run build` in `../frontend`) and copies `frontend/dist` into the WAR's `static/`. `SpaWebConfig` serves the SPA from the backend in that case.
 

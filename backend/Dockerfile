@@ -12,7 +12,8 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app/target/*.war app.war
-COPY db/init.sql init.sql
+COPY db/schema.sql schema.sql
+COPY db/seed.sql seed.sql
 COPY backend/docker-entrypoint.sh entrypoint.sh
 RUN chmod +x entrypoint.sh
 ENV DB_URL="jdbc:mariadb://127.0.0.1:3306/fuelsync?characterEncoding=UTF-8&serverTimezone=Asia/Seoul" \

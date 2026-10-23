@@ -15,23 +15,25 @@
 fuelsync-pro/
 ├── backend/         Spring Boot 백엔드
 ├── frontend/        React 프론트엔드
-└── db/              DDL (통합 init + 데이터 비우기)
-    ├── init.sql             최종 스키마 전체 생성 + 예시 탱크 시드
-    └── purge_data_only.sql  테이블 유지, 누적 데이터만 삭제 + AI 리셋
+└── db/              SQL의 유일한 위치
+    ├── schema.sql           최종 스키마 (새 설치용, 기존 tb_* 는 DROP 후 재생성)
+    ├── seed.sql             데모 기준 시드 (계정 jsan · 탱크 2개 · 주유소 · 판매가)
+    ├── purge_data_only.sql  테이블 유지, 누적 데이터만 삭제 + AI 리셋
+    └── migrations/          기존 DB 업그레이드용 번호 순 변경 (001 → 004)
 ```
 
-`backend/src/main/resources/db/` 에도 동일한 `init.sql`, `purge_data_only.sql` 을 두었습니다.
+## `db/` 구성
 
-## `db/init.sql` 구성
+MariaDB **저장 함수·프로시저(`CREATE FUNCTION` 등)는 없습니다.**
 
-MariaDB **저장 함수·프로시저(`CREATE FUNCTION` 등)는 없습니다.** 파일은 아래 논리 블록으로 구성됩니다.
-
-| 구역 | 역할 |
+| 파일 | 역할 |
 |------|------|
-| `[1] 전 객체 삭제` | 외래키 체크 비활성화 후 `tb_*` 테이블 DROP |
-| `[2] 테이블 생성` | 10개 테이블 DDL, 인덱스·CHECK·FK 정의 |
-| `[3] 기준 시드` | 탱크·주유소·판매가·가격 이력·데모 입고/판매 INSERT |
-| `[선택 B]` (주석) | 스키마 유지한 채 행만 삭제하는 예시 — 실제 실행은 `purge_data_only.sql` 권장 |
+| `schema.sql` | `[1]` 전 객체 삭제 → `[2]` 10개 테이블 DDL (인덱스·CHECK·FK 포함) |
+| `seed.sql` | 사용자(`jsan`/`1234`, 데모 전용)·탱크·주유소·판매가 INSERT |
+| `purge_data_only.sql` | 업로드 이력·일별 마감 잔량·판매·입고·조정·가격 이력만 삭제 (앱의 "운영 데이터 삭제"와 같은 범위) |
+| `migrations/NNN_*.sql` | 이미 운영 중인 DB에 컬럼·테이블을 추가하는 변경. 번호 순서대로, 아직 적용하지 않은 것만 실행 |
+
+스키마를 바꿀 때는 `schema.sql` 과 `migrations/` 에 새 번호 파일을 **함께** 수정합니다.
 
 ## 로컬 개발 환경 설정
 
@@ -44,9 +46,16 @@ GRANT ALL PRIVILEGES ON fuelsync.* TO 'fuelsync'@'%';
 FLUSH PRIVILEGES;
 ```
 
-스키마·시드를 한 번에 올리려면 `db/init.sql` 을 실행합니다 (기존 동일 이름 테이블은 DROP 후 재생성).
+스키마와 시드를 올리려면 아래 순서로 실행합니다 (기존 동일 이름 테이블은 DROP 후 재생성).
 
-운영 중 DB에서 **이력만 비우고 스키마는 유지**하려면 `db/purge_data_only.sql` 을 실행합니다. 이후 탱크 등 기준 데이터는 `init.sql` 의 시드 구문이나 앱에서 다시 넣어야 합니다.
+```bash
+mariadb -u root -p --default-character-set=utf8mb4 fuelsync < db/schema.sql
+mariadb -u root -p --default-character-set=utf8mb4 fuelsync < db/seed.sql
+```
+
+운영 중 DB에서 **이력만 비우고 스키마는 유지**하려면 `db/purge_data_only.sql` 을 실행합니다. 사용자·탱크 등 기준 데이터는 그대로 남습니다.
+
+이미 만들어 둔 DB를 최신 스키마로 올리려면 `db/migrations/` 의 파일을 번호 순서대로 적용합니다 (`ADD COLUMN IF NOT EXISTS` / `CREATE TABLE IF NOT EXISTS` 라 다시 실행해도 안전합니다).
 
 ### 2. 백엔드 실행
 

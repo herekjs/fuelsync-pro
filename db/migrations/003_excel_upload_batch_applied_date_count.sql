@@ -1,4 +1,4 @@
--- 기존 DB에 반영일수 컬럼 추가 (init.sql 새 설치에는 이미 포함됨)
+-- 기존 DB에 반영일수 컬럼 추가 (schema.sql 새 설치에는 이미 포함됨)
 ALTER TABLE tb_excel_upload_batch
     ADD COLUMN IF NOT EXISTS applied_date_count INT NOT NULL DEFAULT 0
         COMMENT '판매·입고가 INSERT된 서로 다른 일자 수' AFTER inserted_count;
