@@ -2,17 +2,11 @@ services:
   - type: web
     name: fuelsync-api
     runtime: docker
-    rootDir: backend
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
     plan: free
     healthCheckPath: /error
     envVars:
-      - key: DB_URL
-        sync: false
-      - key: DB_USERNAME
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: OPINET_API_KEY
