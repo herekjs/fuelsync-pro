@@ -37,6 +37,10 @@ public class Tank {
         this.thresholdDanger = thresholdDanger != null ? thresholdDanger : 10;
         this.waterLevel = BigDecimal.ZERO;
         this.status = TankStatus.NORMAL;
+        // 초기 잔량이 이미 임계치 이하일 수 있으므로 생성 시점에 상태를 계산한다.
+        if (maxCapacity != null && maxCapacity.compareTo(BigDecimal.ZERO) > 0) {
+            recalculateStatus();
+        }
     }
 
     public static TankBuilder builder() {
