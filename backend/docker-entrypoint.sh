@@ -23,7 +23,9 @@ echo "[entrypoint] initializing database"
 mariadb --protocol=socket -uroot -e "CREATE DATABASE fuelsync CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER 'fuelsync'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';
 GRANT ALL PRIVILEGES ON fuelsync.* TO 'fuelsync'@'localhost';"
-mariadb --protocol=socket -uroot --default-character-set=utf8mb4 fuelsync < /app/init.sql
+# init.sql 하단 [선택 B](데이터 삭제 구문)는 주석 처리가 안 되어 있어 시드를 지우므로 제외한다.
+awk '/^-- \[선택 B\] 스키마 유지/{exit} {print}' /app/init.sql > /tmp/init.sql
+mariadb --protocol=socket -uroot --default-character-set=utf8mb4 fuelsync < /tmp/init.sql
 echo "[entrypoint] database initialized, starting app"
 
 exec java -Xmx256m -jar /app/app.war
