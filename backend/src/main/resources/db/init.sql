@@ -324,7 +324,6 @@ VALUES
 -- DELETE FROM tb_price_history;
 -- DELETE FROM tb_selling_price;
 -- DELETE FROM tb_station_info;
--- DELETE FROM tb_user;
 -- DELETE FROM tb_tank;
 --
 -- SET FOREIGN_KEY_CHECKS = 1;
