@@ -83,7 +83,7 @@ public class CompetitorService {
                 .build(true)
                 .toUri();
 
-        log.info("[Competitor] Opinet request: {}", uri);
+        log.info("[Competitor] Opinet request: {}", maskApiKey(uri.toString()));
 
         try {
             String rawBody = restTemplate.getForObject(uri, String.class);
@@ -104,9 +104,18 @@ public class CompetitorService {
                     .toList();
 
         } catch (Exception e) {
-            log.error("[Competitor] Opinet API call failed: {}", e.getMessage(), e);
-            throw new FuelSyncException("COMP_003", "오피넷 API 조회 중 오류가 발생했습니다: " + e.getMessage());
+            // 예외 메시지에 요청 URL(API 키 포함)이 담길 수 있어 스택트레이스 대신 마스킹한 메시지만 남긴다.
+            String safeMessage = maskApiKey(e.getMessage());
+            log.error("[Competitor] Opinet API call failed: {} ({})", safeMessage, e.getClass().getSimpleName());
+            throw new FuelSyncException("COMP_003", "오피넷 API 조회 중 오류가 발생했습니다: " + safeMessage);
         }
+    }
+
+    private String maskApiKey(String text) {
+        if (text == null || apiKey == null || apiKey.isBlank()) {
+            return text;
+        }
+        return text.replace(apiKey, "***");
     }
 
     @SuppressWarnings("unchecked")
