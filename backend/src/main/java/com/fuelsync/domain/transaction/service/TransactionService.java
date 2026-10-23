@@ -45,7 +45,7 @@ public class TransactionService {
 
     @Transactional
     public TransactionDto.Response create(TransactionDto.CreateRequest request) {
-        Tank tank = tankService.getTankOrThrow(request.tankId());
+        Tank tank = tankService.getTankForUpdateOrThrow(request.tankId());
 
         BigDecimal totalAmount = request.liter()
                 .multiply(request.unitPrice())

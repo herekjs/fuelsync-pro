@@ -20,6 +20,9 @@ public interface TankMapper {
 
     Optional<Tank> findById(@Param("tankId") Long tankId);
 
+    /** 잔량을 변경할 트랜잭션에서 사용: 행을 잠가 동시 갱신(lost update)을 막는다. */
+    Optional<Tank> findByIdForUpdate(@Param("tankId") Long tankId);
+
     void insert(Tank tank);
 
     void updateVolume(Tank tank);

@@ -80,7 +80,7 @@ public class AdjustmentService {
     private AdjustmentDto.Response insertAdjustment(
             AdjustmentDto.CreateRequest request,
             StockAdjustment.InputType inputType) {
-        Tank tank = tankService.getTankOrThrow(request.tankId());
+        Tank tank = tankService.getTankForUpdateOrThrow(request.tankId());
 
         BigDecimal diffVolume = request.physicalStock()
                 .subtract(request.bookStock())

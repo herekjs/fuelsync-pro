@@ -42,7 +42,7 @@ public class StockInService {
 
     @Transactional
     public StockInDto.Response create(StockInDto.CreateRequest request) {
-        Tank tank = tankService.getTankOrThrow(request.tankId());
+        Tank tank = tankService.getTankForUpdateOrThrow(request.tankId());
 
         // 탱크 잔량 증가 + 용량 초과 검증 (메모리)
         tank.addVolume(request.inVolume());

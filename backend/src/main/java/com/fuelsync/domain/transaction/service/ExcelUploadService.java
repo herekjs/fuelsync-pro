@@ -157,10 +157,11 @@ public class ExcelUploadService {
 
         String safeName = (name == null || name.isBlank()) ? "upload.xlsx" : name;
 
-        Tank gasTank = tankMapper.findById(gasTankId)
+        // 업로드 전체가 한 트랜잭션이므로, 시뮬레이션 기준이 되는 잔량 시점부터 행을 잠가 둔다.
+        Tank gasTank = tankMapper.findByIdForUpdate(gasTankId)
                 .orElseThrow(() -> new FuelSyncException(FuelSyncException.Tank.NOT_FOUND,
                         "탱크를 찾을 수 없습니다. tankId=" + gasTankId));
-        Tank dieselTank = tankMapper.findById(dieselTankId)
+        Tank dieselTank = tankMapper.findByIdForUpdate(dieselTankId)
                 .orElseThrow(() -> new FuelSyncException(FuelSyncException.Tank.NOT_FOUND,
                         "탱크를 찾을 수 없습니다. tankId=" + dieselTankId));
 
@@ -426,10 +427,11 @@ public class ExcelUploadService {
             }
         }
 
-        Tank gasTank = tankMapper.findById(simulation.gasTankId())
+        // 잠금 조회는 REPEATABLE READ 스냅샷이 아닌 최신 커밋 값을 읽으므로 여기서도 잠금 조회를 쓴다.
+        Tank gasTank = tankMapper.findByIdForUpdate(simulation.gasTankId())
                 .orElseThrow(() -> new FuelSyncException(FuelSyncException.Tank.NOT_FOUND,
                         "탱크를 찾을 수 없습니다. tankId=" + simulation.gasTankId()));
-        Tank dieselTank = tankMapper.findById(simulation.dieselTankId())
+        Tank dieselTank = tankMapper.findByIdForUpdate(simulation.dieselTankId())
                 .orElseThrow(() -> new FuelSyncException(FuelSyncException.Tank.NOT_FOUND,
                         "탱크를 찾을 수 없습니다. tankId=" + simulation.dieselTankId()));
 

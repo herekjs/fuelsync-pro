@@ -47,6 +47,13 @@
         WHERE tank_id = #{tankId}
     </select>
 
+    <select id="findByIdForUpdate" resultMap="TankResult">
+        SELECT *
+        FROM tb_tank
+        WHERE tank_id = #{tankId}
+        FOR UPDATE
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="tankId">
         INSERT INTO tb_tank
             (tank_name, fuel_type, max_capacity, current_volume,

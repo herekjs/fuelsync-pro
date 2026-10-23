@@ -72,8 +72,8 @@ class ExcelUploadServiceTest {
 
         when(tankMapper.findByFuelType("GASOLINE")).thenReturn(List.of(gasTank));
         when(tankMapper.findByFuelType("DIESEL")).thenReturn(List.of(dieselTank));
-        when(tankMapper.findById(GAS_TANK_ID)).thenReturn(Optional.of(gasTank));
-        when(tankMapper.findById(DIESEL_TANK_ID)).thenReturn(Optional.of(dieselTank));
+        when(tankMapper.findByIdForUpdate(GAS_TANK_ID)).thenReturn(Optional.of(gasTank));
+        when(tankMapper.findByIdForUpdate(DIESEL_TANK_ID)).thenReturn(Optional.of(dieselTank));
         when(transactionMapper.countExcelByTankAndDate(anyLong(), any(LocalDate.class))).thenReturn(0);
         when(stockInMapper.countExcelByTankAndDate(anyLong(), any(LocalDate.class))).thenReturn(0);
         when(priceHistoryMapper.findLatestOurPriceByFuelTypeOnOrBefore(anyString(), any(LocalDate.class)))

@@ -8,6 +8,7 @@ import com.fuelsync.websocket.StockEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -154,7 +155,7 @@ public class TankService {
 
     @Transactional
     public TankDto.Response updateCapacityAndVolume(Long tankId, TankDto.InventoryUpdateRequest request) {
-        Tank tank = getTankOrThrow(tankId);
+        Tank tank = getTankForUpdateOrThrow(tankId);
         tank.updateCapacityAndVolume(request.maxCapacity(), request.currentVolume());
         tankMapper.updateCapacityAndVolume(tank);
         log.info("[Tank] inventory update tankId={}, maxCapacity={}L, currentVolume={}L, status={}",
@@ -184,6 +185,15 @@ public class TankService {
 
     public Tank getTankOrThrow(Long tankId) {
         return tankMapper.findById(tankId)
+                .orElseThrow(() -> new FuelSyncException(
+                        FuelSyncException.Tank.NOT_FOUND,
+                        "탱크를 찾을 수 없습니다. tankId=" + tankId));
+    }
+
+    /** 잔량 변경용 조회. 호출자의 쓰기 트랜잭션 안에서만 사용할 수 있으며 커밋/롤백까지 행 잠금이 유지된다. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Tank getTankForUpdateOrThrow(Long tankId) {
+        return tankMapper.findByIdForUpdate(tankId)
                 .orElseThrow(() -> new FuelSyncException(
                         FuelSyncException.Tank.NOT_FOUND,
                         "탱크를 찾을 수 없습니다. tankId=" + tankId));

@@ -5,7 +5,6 @@ services:
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
     plan: free
-    healthCheckPath: /error
     envVars:
       - key: JWT_SECRET
         generateValue: true
