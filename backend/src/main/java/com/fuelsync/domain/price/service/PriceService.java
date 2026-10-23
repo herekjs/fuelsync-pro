@@ -12,16 +12,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.Date;
-import java.sql.Timestamp;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static com.fuelsync.common.util.RowValues.toBigDecimal;
+import static com.fuelsync.common.util.RowValues.toLocalDate;
 
 @Slf4j
 @Service
@@ -165,40 +165,6 @@ public class PriceService {
             metricMap.put(fuelType, metricValue.setScale(2, RoundingMode.HALF_UP));
         }
         return metricMap;
-    }
-
-    private LocalDate toLocalDate(Object rawDate) {
-        if (rawDate == null) {
-            return null;
-        }
-        if (rawDate instanceof LocalDate localDate) {
-            return localDate;
-        }
-        if (rawDate instanceof LocalDateTime localDateTime) {
-            return localDateTime.toLocalDate();
-        }
-        if (rawDate instanceof Date sqlDate) {
-            return sqlDate.toLocalDate();
-        }
-        if (rawDate instanceof Timestamp timestamp) {
-            return timestamp.toLocalDateTime().toLocalDate();
-        }
-
-        String text = rawDate.toString().trim();
-        if (text.length() >= 10) {
-            return LocalDate.parse(text.substring(0, 10));
-        }
-        return LocalDate.parse(text);
-    }
-
-    private BigDecimal toBigDecimal(Object rawValue) {
-        if (rawValue == null) {
-            return null;
-        }
-        if (rawValue instanceof BigDecimal decimal) {
-            return decimal;
-        }
-        return new BigDecimal(rawValue.toString());
     }
 
     private String metricKey(LocalDate date, String fuelType) {
