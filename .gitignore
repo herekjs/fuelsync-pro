@@ -1,0 +1,30 @@
+# Java / Maven
+target/
+*.class
+*.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Node / Vite
+node_modules/
+dist/
+.env
+.env.local
+.env.production
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local-only config / secrets
+backend/config/
+frontend/node/
+.claude/
+.vercel/
+*.log

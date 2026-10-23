@@ -1,0 +1,52 @@
+---
+description: FuelSync Pro 프로젝트 전체 개요 및 핵심 규칙
+alwaysApply: true
+---
+
+# FuelSync Pro – 프로젝트 개요
+
+주유소 재고·유가 관리 시스템. Spring Boot 3 백엔드 + React/Vite 프론트엔드 모노레포.
+
+## 구조
+
+```
+fuelsync-pro/
+├── backend/   # Spring Boot 3.2, Java 17, MariaDB, MyBatis, WebSocket(STOMP)
+└── frontend/  # React 18, TypeScript, Vite 5, Tailwind CSS 3
+```
+
+## 핵심 도메인
+
+- **Tank** – 탱크 (연료 종류: `GASOLINE | DIESEL | LPG | PREMIUM`, 상태: `NORMAL | WARNING | DANGER`)
+- **Transaction** – 판매 내역 (결제: `CARD | CASH | APP`)
+- **StockIn** – 입고
+- **PriceHistory / 시뮬레이터** – 유가 이력 및 마진 시뮬레이션
+- **StockAdjustment** – 재고 조정
+
+## 데이터 접근 레이어 (MyBatis)
+
+- JPA/Hibernate 미사용, **MyBatis** + XML Mapper로 모든 쿼리 관리
+- Mapper 인터페이스: `domain/<name>/mapper/*Mapper.java` (`@Mapper`)
+- XML 쿼리 파일: `resources/mapper/*Mapper.xml`
+- **JPA dirty checking 없음** → 상태 변경 후 `mapper.update*()` 명시 필수
+
+## API 규칙
+
+- 모든 REST 응답은 `CommonResponse<T>` 래퍼 사용
+  - 성공: `CommonResponse.ok(data)` / `CommonResponse.ok(message, data)`
+  - 실패: `CommonResponse.fail(errorCode, message)`
+- Base path: `/api/*`
+- 예외: `GlobalExceptionHandler` (`@RestControllerAdvice`)에서 중앙 처리
+
+## 실시간
+
+- STOMP over SockJS: 엔드포인트 `/ws`
+- 토픽: `/topic/stock/{tankId}`, `/topic/alert`
+- 프론트: `useWebSocket.ts` 훅으로 구독
+
+## 환경
+
+- 백엔드 포트: **8080**, DB: MariaDB `fuelsync` 스키마
+- 프론트 dev: **5173**, Vite proxy `/api` & `/ws` → `localhost:8080`
+- DB 스키마는 수동 관리 (DDL 자동 생성 없음)
+- JWT 설정은 준비됐지만 현재 `SecurityConfig`는 `permitAll` (인증 미적용)

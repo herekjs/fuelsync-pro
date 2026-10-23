@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fuelsync.domain.maintenance.mapper.OperationalDataPurgeMapper">
+
+    <delete id="deleteAllExcelUploadRows">
+        DELETE FROM tb_excel_upload_row
+    </delete>
+
+    <delete id="deleteAllExcelUploadBatches">
+        DELETE FROM tb_excel_upload_batch
+    </delete>
+
+    <delete id="deleteAllTankDailyLevels">
+        DELETE FROM tb_tank_daily_level
+    </delete>
+
+    <delete id="deleteAllTransactions">
+        DELETE FROM tb_transaction
+    </delete>
+
+    <delete id="deleteAllStockIns">
+        DELETE FROM tb_stock_in
+    </delete>
+
+    <delete id="deleteAllStockAdjustments">
+        DELETE FROM tb_stock_adjustment
+    </delete>
+
+    <delete id="deleteAllPriceHistory">
+        DELETE FROM tb_price_history
+    </delete>
+
+    <update id="resetExcelUploadRowAutoIncrement">
+        ALTER TABLE tb_excel_upload_row AUTO_INCREMENT = 1
+    </update>
+
+    <update id="resetExcelUploadBatchAutoIncrement">
+        ALTER TABLE tb_excel_upload_batch AUTO_INCREMENT = 1
+    </update>
+
+    <update id="resetTransactionAutoIncrement">
+        ALTER TABLE tb_transaction AUTO_INCREMENT = 1
+    </update>
+
+    <update id="resetStockInAutoIncrement">
+        ALTER TABLE tb_stock_in AUTO_INCREMENT = 1
+    </update>
+
+    <update id="resetStockAdjustmentAutoIncrement">
+        ALTER TABLE tb_stock_adjustment AUTO_INCREMENT = 1
+    </update>
+
+    <update id="resetPriceHistoryAutoIncrement">
+        ALTER TABLE tb_price_history AUTO_INCREMENT = 1
+    </update>
+</mapper>

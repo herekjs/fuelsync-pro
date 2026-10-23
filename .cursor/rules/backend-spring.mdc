@@ -1,0 +1,118 @@
+---
+description: Spring Boot 백엔드 코딩 컨벤션 (Java, MyBatis, Controller, Service)
+globs: backend/**/*.java
+alwaysApply: false
+---
+
+# 백엔드 컨벤션 (MyBatis 기반)
+
+## 패키지 구조
+
+`com.fuelsync.domain.<도메인>.<layer>` 패턴 유지:
+```
+domain/tank/
+├── controller/TankController.java
+├── service/TankService.java
+├── mapper/TankMapper.java        ← @Mapper 인터페이스
+├── model/Tank.java               ← 순수 POJO (도메인 메서드 포함)
+└── dto/TankDto.java
+```
+XML 쿼리 파일: `src/main/resources/mapper/<Name>Mapper.xml`
+
+## Controller
+
+- `@RestController`, `@RequestMapping("/api/<resource>")`
+- 반환 타입은 항상 `ResponseEntity<CommonResponse<T>>`
+- 서비스 위임만 수행, 비즈니스 로직 금지
+
+```java
+// ✅ GOOD
+@GetMapping
+public ResponseEntity<CommonResponse<List<TankDto.Response>>> getAll() {
+    return ResponseEntity.ok(CommonResponse.ok(tankService.findAll()));
+}
+```
+
+## Service
+
+- `@Transactional` 기본 적용 (조회는 `@Transactional(readOnly = true)`)
+- JPA dirty checking 없음 → **상태 변경 후 반드시 mapper.update*() 명시 호출**
+- 예외는 `FuelSyncException`으로 래핑
+
+```java
+// ✅ GOOD: deductVolume 후 DB 반영 필수
+tank.deductVolume(request.liter());   // 메모리 상태 변경
+tankMapper.updateVolume(tank);        // DB 명시 반영 ← 반드시 필요
+
+// ❌ BAD: updateVolume 누락 시 DB에 반영 안 됨
+tank.deductVolume(request.liter());
+transactionMapper.insert(tx);         // 탱크 잔량이 DB에 갱신 안 됨
+```
+
+## Mapper 인터페이스
+
+- `@Mapper` 어노테이션 필수 (Spring Bean 자동 등록)
+- 복수 파라미터는 `@Param` 명시
+
+```java
+@Mapper
+public interface TankMapper {
+    Optional<Tank> findById(@Param("tankId") Long tankId);
+    void updateVolume(Tank tank);  // tank.tankId, currentVolume, status 사용
+}
+```
+
+## XML Mapper 규칙
+
+- namespace = 대응하는 Mapper 인터페이스 풀 패키지명
+- INSERT 시 `useGeneratedKeys="true" keyProperty="<PK필드명>"` 필수
+- 복잡한 집계는 `resultType="map"` 후 Service에서 파싱
+
+```xml
+<insert id="insert" useGeneratedKeys="true" keyProperty="tankId">
+    INSERT INTO tb_tank (tank_name, fuel_type, ...)
+    VALUES (#{tankName}, #{fuelType}, ...)
+</insert>
+
+<!-- 집계 쿼리 → resultType="map" -->
+<select id="findTodaySummaryByTank" resultType="map">
+    SELECT COALESCE(SUM(liter), 0) AS soldLiter,
+           COALESCE(SUM(total_amount), 0) AS revenue
+    FROM tb_transaction
+    WHERE tank_id = #{tankId} AND tx_datetime >= #{startOfDay}
+</select>
+```
+
+## Model 클래스
+
+- 순수 POJO: JPA 어노테이션 일절 금지
+- `@Getter @Setter @NoArgsConstructor` (MyBatis가 setters로 값 주입)
+- 도메인 비즈니스 메서드는 Tank 모델 내부에 유지 (deductVolume, addVolume, recalculateStatus)
+
+## 주요 Enum (Tank 모델 내부)
+
+| Enum | 값 |
+|------|----|
+| `Tank.FuelType` | `GASOLINE, DIESEL, LPG, PREMIUM` |
+| `Tank.TankStatus` | `NORMAL, WARNING, DANGER` |
+| `Transaction.PaymentType` | `CARD, CASH, APP` |
+
+## 테이블 명
+
+| 모델 | 테이블 |
+|------|--------|
+| Tank | tb_tank |
+| Transaction | tb_transaction |
+| StockIn | tb_stock_in |
+| PriceHistory | tb_price_history |
+| StockAdjustment | tb_stock_adjustment |
+
+## WebSocket 이벤트 발행
+
+탱크 재고 변경 시 반드시 `StockEventPublisher` 호출:
+```java
+tank.deductVolume(liter);
+tankMapper.updateVolume(tank);          // DB 반영
+stockEventPublisher.publishStockUpdate(...);  // 실시간 push
+if (tank.getStatus() != NORMAL) stockEventPublisher.publishAlert(...);
+```

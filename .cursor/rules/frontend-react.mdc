@@ -1,0 +1,80 @@
+---
+description: React/TypeScript 프론트엔드 컨벤션 (컴포넌트, API, 스타일)
+globs: frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# 프론트엔드 컨벤션
+
+## 디렉토리 구조
+
+```
+src/
+├── pages/       # 라우트 단위 페이지 (Dashboard, StockInPage, PriceSimulatorPage)
+├── components/  # 재사용 컴포넌트 (도메인별 하위 폴더)
+├── hooks/       # 커스텀 훅 (useWebSocket 등)
+├── services/    # api.ts – Axios 클라이언트 및 API 함수
+└── types/       # index.ts – 전역 타입 정의
+```
+
+## 타입 시스템
+
+- 모든 API 응답 타입은 `src/types/index.ts`에 정의된 인터페이스 사용
+- `CommonResponse<T>`로 래핑된 응답에서 `.data.data`로 실제 데이터 접근
+- 새 도메인 추가 시 타입도 `types/index.ts`에 함께 추가
+
+## API 호출
+
+- `services/api.ts`의 `*Api` 객체만 사용 (직접 axios 호출 금지)
+- 새 엔드포인트는 해당 `*Api` 객체에 메서드 추가
+
+```typescript
+// ✅ GOOD
+const res = await tankApi.getAll();
+const tanks = res.data.data;
+
+// ❌ BAD
+const res = await axios.get('/api/tanks');
+```
+
+## 컴포넌트
+
+- 함수형 컴포넌트 + `export default` 사용
+- 페이지 내 상태는 `useState` / `useCallback` 로컬 관리 (zustand 미활성화 상태)
+- 재사용 가능한 로직은 `hooks/` 커스텀 훅으로 분리
+
+## 스타일 (Tailwind CSS)
+
+- 인라인 style 속성 사용 금지, Tailwind 클래스만 사용
+- 탱크 상태별 색상:
+  - `NORMAL` → `green`, `WARNING` → `yellow`, `DANGER` → `red`
+- 브랜드 컬러: `blue-700` (헤더/강조)
+
+## 라우팅
+
+현재 라우트:
+| 경로 | 컴포넌트 | 메뉴 |
+|------|----------|------|
+| `/` | `Dashboard` | 대시보드 |
+| `/stock-in` | `StockInPage` | 입고 관리 |
+| `/price` | `PriceSimulatorPage` | 유가 시뮬레이터 |
+
+새 페이지 추가 시 `App.tsx`의 `NAV_ITEMS`와 `<Routes>` 모두 업데이트.
+
+## WebSocket
+
+- `useWebSocket` 훅 사용; 직접 STOMP 클라이언트 생성 금지
+- 수신 메시지 타입: `StockUpdateMessage` (`types/index.ts` 정의됨)
+
+## 런타임·스크립트 검증 (필수)
+
+프론트 변경 후 **타입/빌드만으로는 부족**하다. 차트·라우터·브라우저 전용 API는 런타임에서만 터질 수 있다.
+
+- `npm run build`로 `tsc` 통과 확인
+- 가능하면 `npm run dev`로 해당 페이지를 열고 **브라우저 개발자 도구 Console**에 오류·경고가 없는지 확인
+- **ApexCharts (`react-apexcharts`)**: `tooltip.shared: true`를 쓰면 반드시 `tooltip.intersect: false`를 함께 설정한다. 그렇지 않으면 `tooltip.shared cannot be enabled when tooltip.intersect is true` 예외로 차트 마운트가 실패한다.
+
+## 주의사항
+
+- `/login` 라우트 미구현 – 401 발생 시 리다이렉트되나 화면 없음 (추후 구현 필요)
+- `zustand` 의존성은 설치됐지만 스토어 미생성 – 전역 상태 필요 시 `src/store/` 폴더 생성 후 추가

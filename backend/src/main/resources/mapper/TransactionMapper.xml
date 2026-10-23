@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.fuelsync.domain.transaction.mapper.TransactionMapper">
+
+    <resultMap id="TransactionResult" type="com.fuelsync.domain.transaction.model.Transaction">
+        <id     column="tx_id"        property="txId"/>
+        <result column="tank_id"      property="tankId"/>
+        <result column="tank_name"    property="tankName"/>
+        <result column="fuel_type"    property="fuelType"/>
+        <result column="liter"        property="liter"/>
+        <result column="unit_price"   property="unitPrice"/>
+        <result column="total_amount" property="totalAmount"/>
+        <result column="payment_type" property="paymentType"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="input_type"   property="inputType"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="approval_no"  property="approvalNo"/>
+        <result column="tx_datetime"  property="txDatetime"/>
+        <result column="created_at"   property="createdAt"/>
+    </resultMap>
+
+    <select id="findByPeriod" resultMap="TransactionResult">
+        SELECT t.tx_id, t.tank_id, tk.tank_name, tk.fuel_type,
+               t.liter, t.unit_price, t.total_amount, t.payment_type, t.input_type,
+               t.approval_no, t.tx_datetime, t.created_at
+        FROM tb_transaction t
+                 JOIN tb_tank tk ON t.tank_id = tk.tank_id
+        WHERE t.tx_datetime BETWEEN #{from} AND #{to}
+        ORDER BY t.tx_datetime ASC, t.tx_id ASC
+    </select>
+
+    <select id="findRecent" resultMap="TransactionResult">
+        SELECT t.tx_id, t.tank_id, tk.tank_name, tk.fuel_type,
+               t.liter, t.unit_price, t.total_amount, t.payment_type, t.input_type,
+               t.approval_no, t.tx_datetime, t.created_at
+        FROM tb_transaction t
+                 JOIN tb_tank tk ON t.tank_id = tk.tank_id
+        WHERE t.tx_datetime >= #{since}
+        ORDER BY t.tx_datetime ASC
+    </select>
+
+    <!-- 오늘 탱크별 판매 합계: soldLiter, revenue -->
+    <select id="findTodaySummaryByTank" resultType="map">
+        SELECT COALESCE(SUM(liter), 0)        AS soldLiter,
+               COALESCE(SUM(total_amount), 0) AS revenue
+        FROM tb_transaction
+        WHERE tank_id = #{tankId}
+          AND tx_datetime >= #{startOfDay}
+    </select>
+
+    <!-- Stock Runway 계산용: 시간대별 판매량 -->
+    <select id="findHourlyLiterSince" resultType="map">
+        SELECT HOUR(tx_datetime) AS hour,
+               SUM(liter)        AS totalLiter
+        FROM tb_transaction
+        WHERE tank_id = #{tankId}
+          AND tx_datetime >= #{since}
+        GROUP BY HOUR(tx_datetime)
+    </select>
+
+    <select id="sumLiterSince" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(liter), 0)
+        FROM tb_transaction
+        WHERE tank_id = #{tankId}
+          AND tx_datetime &gt;= #{since}
+    </select>
+
+    <select id="findLastSaleDateSince" resultType="java.time.LocalDate">
+        SELECT DATE(MAX(tx_datetime))
+        FROM tb_transaction
+        WHERE tank_id = #{tankId}
+          AND tx_datetime &gt;= #{since}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="txId">
+        INSERT INTO tb_transaction
+            (tank_id, liter, unit_price, total_amount, payment_type, input_type,
+             approval_no, tx_datetime, created_at)
+        VALUES
+            (#{tankId}, #{liter}, #{unitPrice}, #{totalAmount}, #{paymentType}, #{inputType},
+             #{approvalNo}, #{txDatetime}, NOW())
+    </insert>
+
+    <insert id="insertBatch">
+        INSERT INTO tb_transaction
+            (tank_id, liter, unit_price, total_amount, payment_type, input_type,
+             approval_no, tx_datetime, created_at)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.tankId}, #{item.liter}, #{item.unitPrice}, #{item.totalAmount},
+             #{item.paymentType}, #{item.inputType},
+             #{item.approvalNo}, #{item.txDatetime}, NOW())
+        </foreach>
+    </insert>
+
+    <delete id="deleteExcelByTankAndDate">
+        DELETE FROM tb_transaction
+        WHERE tank_id = #{tankId}
+          AND DATE(tx_datetime) = #{saleDate}
+          AND input_type = 'EXCEL'
+    </delete>
+
+    <select id="countExcelByTankAndDate" resultType="int">
+        SELECT COUNT(1)
+        FROM tb_transaction
+        WHERE tank_id = #{tankId}
+          AND DATE(tx_datetime) = #{saleDate}
+          AND input_type = 'EXCEL'
+    </select>
+
+    <select id="findMonthlyStats" resultType="map">
+        SELECT DATE_FORMAT(t.tx_datetime, '%Y-%m') AS period_key,
+               tk.fuel_type                         AS fuel_type,
+               COALESCE(SUM(t.liter), 0)            AS total_liter
+        FROM tb_transaction t
+                 JOIN tb_tank tk ON t.tank_id = tk.tank_id
+        WHERE tk.fuel_type IN ('GASOLINE', 'DIESEL')
+        <if test="startDate != null">
+            AND DATE(t.tx_datetime) &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND DATE(t.tx_datetime) &lt;= #{endDate}
+        </if>
+        GROUP BY DATE_FORMAT(t.tx_datetime, '%Y-%m'), tk.fuel_type
+        ORDER BY period_key ASC, tk.fuel_type ASC
+    </select>
+
+    <select id="findDailyStats" resultType="map">
+        SELECT DATE(t.tx_datetime) AS period_key,
+               tk.fuel_type        AS fuel_type,
+               COALESCE(SUM(t.liter), 0) AS total_liter
+        FROM tb_transaction t
+                 JOIN tb_tank tk ON t.tank_id = tk.tank_id
+        WHERE tk.fuel_type IN ('GASOLINE', 'DIESEL')
+        <if test="startDate != null">
+            AND DATE(t.tx_datetime) &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND DATE(t.tx_datetime) &lt;= #{endDate}
+        </if>
+        GROUP BY DATE(t.tx_datetime), tk.fuel_type
+        ORDER BY period_key ASC, tk.fuel_type ASC
+    </select>
+
+    <select id="findWeeklyStats" resultType="map">
+        SELECT DATE_SUB(DATE(t.tx_datetime), INTERVAL WEEKDAY(t.tx_datetime) DAY) AS period_key,
+               tk.fuel_type                                              AS fuel_type,
+               COALESCE(SUM(t.liter), 0)                                 AS total_liter
+        FROM tb_transaction t
+                 JOIN tb_tank tk ON t.tank_id = tk.tank_id
+        WHERE tk.fuel_type IN ('GASOLINE', 'DIESEL')
+        <if test="startDate != null">
+            AND DATE(t.tx_datetime) &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND DATE(t.tx_datetime) &lt;= #{endDate}
+        </if>
+        GROUP BY DATE_SUB(DATE(t.tx_datetime), INTERVAL WEEKDAY(t.tx_datetime) DAY), tk.fuel_type
+        ORDER BY period_key ASC, tk.fuel_type ASC
+    </select>
+
+    <!-- 요일별 일평균 판매량(L): 각 날짜·유종별 일 합계 후 요일(WEEKDAY 0=월~6=일)별 AVG -->
+    <select id="findDayOfWeekAvgStats" resultType="map">
+        SELECT sub.dow        AS dow,
+               sub.fuel_type AS fuel_type,
+               AVG(sub.daily_total) AS avg_liter
+        FROM (
+            SELECT WEEKDAY(t.tx_datetime) AS dow,
+                   tk.fuel_type            AS fuel_type,
+                   COALESCE(SUM(t.liter), 0) AS daily_total
+            FROM tb_transaction t
+                     JOIN tb_tank tk ON t.tank_id = tk.tank_id
+            WHERE tk.fuel_type IN ('GASOLINE', 'DIESEL')
+            <if test="startDate != null">
+                AND DATE(t.tx_datetime) &gt;= #{startDate}
+            </if>
+            <if test="endDate != null">
+                AND DATE(t.tx_datetime) &lt;= #{endDate}
+            </if>
+            GROUP BY DATE(t.tx_datetime), WEEKDAY(t.tx_datetime), tk.fuel_type
+        ) sub
+        GROUP BY sub.dow, sub.fuel_type
+        ORDER BY sub.dow ASC, sub.fuel_type ASC
+    </select>
+
+</mapper>

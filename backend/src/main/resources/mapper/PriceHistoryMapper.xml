@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.fuelsync.domain.price.mapper.PriceHistoryMapper">
+
+    <resultMap id="PriceHistoryResult" type="com.fuelsync.domain.price.model.PriceHistory">
+        <id     column="history_id"           property="historyId"/>
+        <result column="fuel_type"            property="fuelType"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="our_price"            property="ourPrice"/>
+        <result column="competitor_avg_price" property="competitorAvgPrice"/>
+        <result column="opinet_date"          property="opinetDate"/>
+        <result column="created_at"           property="createdAt"/>
+    </resultMap>
+
+    <select id="findByFuelTypeAndPeriod" resultMap="PriceHistoryResult">
+        SELECT *
+        FROM tb_price_history
+        WHERE fuel_type = #{fuelType}
+          AND opinet_date BETWEEN #{from} AND #{to}
+        ORDER BY opinet_date DESC
+    </select>
+
+    <select id="existsByFuelTypeAndOpinetDate" resultType="boolean">
+        SELECT COUNT(*) > 0
+        FROM tb_price_history
+        WHERE fuel_type = #{fuelType}
+          AND opinet_date = #{opinetDate}
+    </select>
+
+    <select id="findDailyAvgBuyPriceByFuelTypes" resultType="map">
+        SELECT s.in_date AS metricDate,
+               tk.fuel_type AS fuelType,
+               AVG(s.buy_price) AS metricValue
+        FROM tb_stock_in s
+                 JOIN tb_tank tk ON s.tank_id = tk.tank_id
+        WHERE s.in_date BETWEEN #{from} AND #{to}
+          AND tk.fuel_type IN
+          <foreach collection="fuelTypes" item="fuelType" open="(" separator="," close=")">
+              #{fuelType}
+          </foreach>
+        GROUP BY s.in_date, tk.fuel_type
+        ORDER BY s.in_date ASC, tk.fuel_type ASC
+    </select>
+
+    <select id="findDailyAvgActualSellingPriceByFuelTypes" resultType="map">
+        SELECT DATE(t.tx_datetime) AS metricDate,
+               tk.fuel_type AS fuelType,
+               AVG(t.unit_price) AS metricValue
+        FROM tb_transaction t
+                 JOIN tb_tank tk ON t.tank_id = tk.tank_id
+        WHERE DATE(t.tx_datetime) BETWEEN #{from} AND #{to}
+          AND tk.fuel_type IN
+          <foreach collection="fuelTypes" item="fuelType" open="(" separator="," close=")">
+              #{fuelType}
+          </foreach>
+        GROUP BY DATE(t.tx_datetime), tk.fuel_type
+        ORDER BY metricDate ASC, tk.fuel_type ASC
+    </select>
+
+    <select id="findLatestAvgBuyPriceBeforeDate" resultType="map">
+        SELECT tk.fuel_type AS fuelType,
+               AVG(s.buy_price) AS metricValue
+        FROM tb_stock_in s
+                 INNER JOIN tb_tank tk ON s.tank_id = tk.tank_id
+                 INNER JOIN (
+            SELECT tk2.fuel_type AS ft, MAX(s2.in_date) AS max_in_date
+            FROM tb_stock_in s2
+                     INNER JOIN tb_tank tk2 ON s2.tank_id = tk2.tank_id
+            WHERE tk2.fuel_type IN
+            <foreach collection="fuelTypes" item="fuelType" open="(" separator="," close=")">
+                #{fuelType}
+            </foreach>
+              AND s2.in_date &lt; #{beforeDate}
+            GROUP BY tk2.fuel_type
+        ) latest ON latest.ft = tk.fuel_type AND latest.max_in_date = s.in_date
+        WHERE tk.fuel_type IN
+        <foreach collection="fuelTypes" item="fuelType" open="(" separator="," close=")">
+            #{fuelType}
+        </foreach>
+        GROUP BY tk.fuel_type
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="historyId">
+        INSERT INTO tb_price_history
+            (fuel_type, our_price, competitor_avg_price, opinet_date, created_at)
+        VALUES
+            (#{fuelType}, #{ourPrice}, #{competitorAvgPrice}, #{opinetDate}, NOW())
+    </insert>
+
+    <insert id="upsertFromExcel">
+        INSERT INTO tb_price_history (fuel_type, our_price, competitor_avg_price, opinet_date, created_at)
+        VALUES (#{fuelType}, #{ourPrice}, NULL, #{opinetDate}, NOW())
+        ON DUPLICATE KEY UPDATE our_price = VALUES(our_price)
+    </insert>
+
+    <select id="findLatestOurPriceByFuelTypeOnOrBefore" resultType="java.math.BigDecimal">
+        SELECT our_price
+        FROM tb_price_history
+        WHERE fuel_type = #{fuelType}
+          AND opinet_date &lt;= #{asOfDate}
+        ORDER BY opinet_date DESC
+        LIMIT 1
+    </select>
+
+</mapper>

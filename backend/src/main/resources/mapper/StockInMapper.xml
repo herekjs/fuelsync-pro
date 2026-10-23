@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.fuelsync.domain.stockin.mapper.StockInMapper">
+
+    <resultMap id="StockInResult" type="com.fuelsync.domain.stockin.model.StockIn">
+        <id     column="in_id"      property="inId"/>
+        <result column="tank_id"    property="tankId"/>
+        <result column="tank_name"  property="tankName"/>
+        <result column="fuel_type"  property="fuelType"/>
+        <result column="in_volume"  property="inVolume"/>
+        <result column="buy_price"  property="buyPrice"/>
+        <result column="vendor_name" property="vendorName"/>
+        <result column="in_date"    property="inDate"/>
+        <result column="memo"       property="memo"/>
+        <result column="input_type" property="inputType"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="findByTankId" resultMap="StockInResult">
+        SELECT s.in_id, s.tank_id, tk.tank_name, tk.fuel_type,
+               s.in_volume, s.buy_price, s.vendor_name, s.in_date,
+               s.memo, s.input_type, s.created_at, s.updated_at
+        FROM tb_stock_in s
+                 JOIN tb_tank tk ON s.tank_id = tk.tank_id
+        WHERE s.tank_id = #{tankId}
+        ORDER BY s.in_date ASC, s.in_id ASC
+    </select>
+
+    <select id="findByPeriod" resultMap="StockInResult">
+        SELECT s.in_id, s.tank_id, tk.tank_name, tk.fuel_type,
+               s.in_volume, s.buy_price, s.vendor_name, s.in_date,
+               s.memo, s.input_type, s.created_at, s.updated_at
+        FROM tb_stock_in s
+                 JOIN tb_tank tk ON s.tank_id = tk.tank_id
+        WHERE s.in_date BETWEEN #{from} AND #{to}
+        ORDER BY s.in_date ASC, s.in_id ASC
+    </select>
+
+    <!-- 특정 탱크 평균 매입 단가 (재고 조정 손실 산출용) -->
+    <select id="findAvgBuyPriceSince" resultType="java.math.BigDecimal">
+        SELECT AVG(buy_price)
+        FROM tb_stock_in
+        WHERE tank_id = #{tankId}
+          AND in_date >= #{since}
+    </select>
+
+    <!-- 전체 평균 매입 단가 (대시보드 마진 산출용) -->
+    <select id="findOverallAvgBuyPriceSince" resultType="java.math.BigDecimal">
+        SELECT AVG(buy_price)
+        FROM tb_stock_in
+        WHERE in_date >= #{since}
+    </select>
+
+    <select id="findLatestInDateByTankId" resultType="java.time.LocalDate">
+        SELECT MAX(in_date)
+        FROM tb_stock_in
+        WHERE tank_id = #{tankId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="inId">
+        INSERT INTO tb_stock_in
+            (tank_id, in_volume, buy_price, vendor_name, in_date, memo, input_type, created_at, updated_at)
+        VALUES
+            (#{tankId}, #{inVolume}, #{buyPrice}, #{vendorName}, #{inDate}, #{memo}, #{inputType}, NOW(), NOW())
+    </insert>
+
+    <delete id="deleteExcelByTankAndDate">
+        DELETE FROM tb_stock_in
+        WHERE tank_id = #{tankId}
+          AND in_date = #{inDate}
+          AND input_type = 'EXCEL'
+    </delete>
+
+    <select id="countExcelByTankAndDate" resultType="int">
+        SELECT COUNT(1)
+        FROM tb_stock_in
+        WHERE tank_id = #{tankId}
+          AND in_date = #{inDate}
+          AND input_type = 'EXCEL'
+    </select>
+
+</mapper>

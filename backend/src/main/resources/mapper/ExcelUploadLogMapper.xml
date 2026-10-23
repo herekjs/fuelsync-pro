@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.fuelsync.domain.excel.mapper.ExcelUploadLogMapper">
+
+    <resultMap id="BatchResult" type="com.fuelsync.domain.excel.model.ExcelUploadBatch">
+        <id     column="batch_id"       property="batchId"/>
+        <result column="file_name"      property="fileName"/>
+        <result column="total_rows"     property="totalRows"/>
+        <result column="inserted_count" property="insertedCount"/>
+        <result column="applied_date_count" property="appliedDateCount"/>
+        <result column="uploaded_at"    property="uploadedAt"/>
+    </resultMap>
+
+    <resultMap id="RowResult" type="com.fuelsync.domain.excel.model.ExcelUploadRow">
+        <id     column="row_id"              property="rowId"/>
+        <result column="batch_id"            property="batchId"/>
+        <result column="row_no"              property="rowNo"/>
+        <result column="sale_date"           property="saleDate"/>
+        <result column="gasoline_in_liter"   property="gasolineInLiter"/>
+        <result column="gasoline_sale_liter" property="gasolineSaleLiter"/>
+        <result column="gasoline_diff_liter" property="gasolineDiffLiter"/>
+        <result column="diesel_in_liter"     property="dieselInLiter"/>
+        <result column="diesel_sale_liter"   property="dieselSaleLiter"/>
+        <result column="diesel_diff_liter"   property="dieselDiffLiter"/>
+        <result column="gasoline_selling_price" property="gasolineSellingPrice"/>
+        <result column="gasoline_buy_price"     property="gasolineBuyPrice"/>
+        <result column="diesel_selling_price"   property="dieselSellingPrice"/>
+        <result column="diesel_buy_price"       property="dieselBuyPrice"/>
+        <result column="adj_gasoline_physical_liter" property="adjGasolinePhysicalLiter"/>
+        <result column="adj_gasoline_diff_liter"     property="adjGasolineDiffLiter"/>
+        <result column="adj_diesel_physical_liter"   property="adjDieselPhysicalLiter"/>
+        <result column="adj_diesel_diff_liter"       property="adjDieselDiffLiter"/>
+        <result column="gasoline_closing_liter"      property="gasolineClosingLiter"/>
+        <result column="diesel_closing_liter"        property="dieselClosingLiter"/>
+        <result column="gasoline_day_adj_liter"     property="gasolineDayAdjLiter"/>
+        <result column="diesel_day_adj_liter"        property="dieselDayAdjLiter"/>
+        <result column="gas_stock_in_inserted"       property="gasStockInInserted"/>
+        <result column="gas_sale_inserted"           property="gasSaleInserted"/>
+        <result column="diesel_stock_in_inserted"    property="dieselStockInInserted"/>
+        <result column="diesel_sale_inserted"        property="dieselSaleInserted"/>
+    </resultMap>
+
+    <insert id="insertBatch" useGeneratedKeys="true" keyProperty="batchId">
+        INSERT INTO tb_excel_upload_batch (file_name, total_rows, inserted_count, uploaded_at)
+        VALUES (#{fileName}, #{totalRows}, #{insertedCount}, NOW())
+    </insert>
+
+    <insert id="insertRows">
+        INSERT INTO tb_excel_upload_row
+            (batch_id, row_no, sale_date, gasoline_in_liter, gasoline_sale_liter, gasoline_diff_liter,
+             gasoline_selling_price, gasoline_buy_price,
+             diesel_in_liter, diesel_sale_liter, diesel_diff_liter,
+             diesel_selling_price, diesel_buy_price,
+             adj_gasoline_physical_liter, adj_gasoline_diff_liter, adj_diesel_physical_liter, adj_diesel_diff_liter,
+             gasoline_closing_liter, diesel_closing_liter, gasoline_day_adj_liter, diesel_day_adj_liter,
+             gas_stock_in_inserted, gas_sale_inserted, diesel_stock_in_inserted, diesel_sale_inserted)
+        VALUES
+        <foreach collection="rows" item="r" separator=",">
+            (#{r.batchId}, #{r.rowNo}, #{r.saleDate}, #{r.gasolineInLiter}, #{r.gasolineSaleLiter}, #{r.gasolineDiffLiter},
+             #{r.gasolineSellingPrice}, #{r.gasolineBuyPrice},
+             #{r.dieselInLiter}, #{r.dieselSaleLiter}, #{r.dieselDiffLiter},
+             #{r.dieselSellingPrice}, #{r.dieselBuyPrice},
+             #{r.adjGasolinePhysicalLiter}, #{r.adjGasolineDiffLiter}, #{r.adjDieselPhysicalLiter}, #{r.adjDieselDiffLiter},
+             #{r.gasolineClosingLiter}, #{r.dieselClosingLiter}, #{r.gasolineDayAdjLiter}, #{r.dieselDayAdjLiter},
+             #{r.gasStockInInserted}, #{r.gasSaleInserted}, #{r.dieselStockInInserted}, #{r.dieselSaleInserted})
+        </foreach>
+    </insert>
+
+    <update id="updateBatchCounts">
+        UPDATE tb_excel_upload_batch
+        SET total_rows = #{totalRows},
+            inserted_count = #{insertedCount},
+            applied_date_count = #{appliedDateCount}
+        WHERE batch_id = #{batchId}
+    </update>
+
+    <select id="findAllBatchesDesc" resultMap="BatchResult">
+        SELECT batch_id, file_name, total_rows, inserted_count, applied_date_count, uploaded_at
+        FROM tb_excel_upload_batch
+        ORDER BY uploaded_at DESC, batch_id DESC
+    </select>
+
+    <select id="findBatchesDescByUploadedAtRange" resultMap="BatchResult">
+        SELECT batch_id, file_name, total_rows, inserted_count, applied_date_count, uploaded_at
+        FROM tb_excel_upload_batch
+        WHERE uploaded_at &gt;= #{from}
+          AND uploaded_at &lt; #{toExclusive}
+        ORDER BY uploaded_at DESC, batch_id DESC
+    </select>
+
+    <select id="findRowsByBatchId" resultMap="RowResult">
+        SELECT row_id, batch_id, row_no, sale_date,
+               gasoline_in_liter, gasoline_sale_liter, gasoline_diff_liter,
+               gasoline_selling_price, gasoline_buy_price,
+               diesel_in_liter, diesel_sale_liter, diesel_diff_liter,
+               diesel_selling_price, diesel_buy_price,
+               adj_gasoline_physical_liter, adj_gasoline_diff_liter, adj_diesel_physical_liter, adj_diesel_diff_liter,
+               gasoline_closing_liter, diesel_closing_liter, gasoline_day_adj_liter, diesel_day_adj_liter,
+               gas_stock_in_inserted, gas_sale_inserted, diesel_stock_in_inserted, diesel_sale_inserted
+        FROM tb_excel_upload_row
+        WHERE batch_id = #{batchId}
+        ORDER BY row_no ASC
+    </select>
+
+    <select id="findDailyDiffStats" resultType="map">
+        SELECT sale_date AS period_key,
+               COALESCE(gasoline_diff_liter, 0) AS gasoline_diff,
+               COALESCE(diesel_diff_liter, 0) AS diesel_diff
+        FROM (
+            SELECT sale_date,
+                   gasoline_diff_liter,
+                   diesel_diff_liter,
+                   ROW_NUMBER() OVER (PARTITION BY sale_date ORDER BY row_id DESC) AS rn
+            FROM tb_excel_upload_row
+            <where>
+                <if test="startDate != null">
+                    sale_date &gt;= #{startDate}
+                </if>
+                <if test="endDate != null">
+                    AND sale_date &lt;= #{endDate}
+                </if>
+            </where>
+        ) ranked
+        WHERE rn = 1
+          AND (gasoline_diff_liter IS NOT NULL OR diesel_diff_liter IS NOT NULL)
+        ORDER BY sale_date ASC
+    </select>
+</mapper>

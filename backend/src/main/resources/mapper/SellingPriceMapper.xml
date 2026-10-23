@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.fuelsync.domain.price.mapper.SellingPriceMapper">
+
+    <resultMap id="SellingPriceResult" type="com.fuelsync.domain.price.model.SellingPrice">
+        <id     column="price_id"       property="priceId"/>
+        <result column="fuel_type"      property="fuelType"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="selling_price"  property="sellingPrice"/>
+        <result column="effective_from" property="effectiveFrom"/>
+        <result column="created_at"     property="createdAt"/>
+    </resultMap>
+
+    <!-- 유종별 최신 판매가 한 건씩 조회 -->
+    <select id="findLatestAll" resultMap="SellingPriceResult">
+        SELECT s.*
+        FROM tb_selling_price s
+        INNER JOIN (
+            SELECT fuel_type, MAX(effective_from) AS max_date
+            FROM tb_selling_price
+            GROUP BY fuel_type
+        ) latest ON s.fuel_type = latest.fuel_type AND s.effective_from = latest.max_date
+        ORDER BY s.fuel_type
+    </select>
+
+    <select id="findLatestByFuelType" resultMap="SellingPriceResult">
+        SELECT * FROM tb_selling_price
+        WHERE fuel_type = #{fuelType}
+        ORDER BY effective_from DESC
+        LIMIT 1
+    </select>
+
+    <!-- 같은 날짜·유종이 있으면 UPDATE, 없으면 INSERT -->
+    <insert id="upsert" useGeneratedKeys="true" keyProperty="priceId">
+        INSERT INTO tb_selling_price (fuel_type, selling_price, effective_from)
+        VALUES (#{fuelType}, #{sellingPrice}, #{effectiveFrom})
+        ON DUPLICATE KEY UPDATE selling_price = VALUES(selling_price)
+    </insert>
+
+</mapper>

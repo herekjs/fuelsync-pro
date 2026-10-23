@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.fuelsync.domain.tank.mapper.TankMapper">
+
+    <resultMap id="TankResult" type="com.fuelsync.domain.tank.model.Tank">
+        <id     column="tank_id"           property="tankId"/>
+        <result column="tank_name"         property="tankName"/>
+        <result column="fuel_type"         property="fuelType"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="max_capacity"      property="maxCapacity"/>
+        <result column="current_volume"    property="currentVolume"/>
+        <result column="temperature"       property="temperature"/>
+        <result column="water_level"       property="waterLevel"/>
+        <result column="threshold_warning" property="thresholdWarning"/>
+        <result column="threshold_danger"  property="thresholdDanger"/>
+        <result column="status"            property="status"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="created_at"        property="createdAt"/>
+        <result column="updated_at"        property="updatedAt"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="TankResult">
+        SELECT *
+        FROM tb_tank
+        ORDER BY fuel_type ASC, tank_name ASC
+    </select>
+
+    <select id="findByFuelType" resultMap="TankResult">
+        SELECT *
+        FROM tb_tank
+        WHERE fuel_type = #{fuelType}
+        ORDER BY tank_name ASC
+    </select>
+
+    <select id="findAttention" resultMap="TankResult">
+        SELECT *
+        FROM tb_tank
+        WHERE status IN ('WARNING', 'DANGER')
+        ORDER BY FIELD(status, 'DANGER', 'WARNING'), tank_name ASC
+    </select>
+
+    <select id="findById" resultMap="TankResult">
+        SELECT *
+        FROM tb_tank
+        WHERE tank_id = #{tankId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="tankId">
+        INSERT INTO tb_tank
+            (tank_name, fuel_type, max_capacity, current_volume,
+             temperature, water_level, threshold_warning, threshold_danger,
+             status, created_at, updated_at)
+        VALUES
+            (#{tankName}, #{fuelType}, #{maxCapacity}, #{currentVolume},
+             #{temperature}, #{waterLevel}, #{thresholdWarning}, #{thresholdDanger},
+             #{status}, NOW(), NOW())
+    </insert>
+
+    <update id="updateVolume">
+        UPDATE tb_tank
+        SET current_volume = #{currentVolume},
+            status         = #{status},
+            updated_at     = NOW()
+        WHERE tank_id = #{tankId}
+    </update>
+
+    <update id="updateCapacityAndVolume">
+        UPDATE tb_tank
+        SET max_capacity   = #{maxCapacity},
+            current_volume = #{currentVolume},
+            status         = #{status},
+            updated_at     = NOW()
+        WHERE tank_id = #{tankId}
+    </update>
+
+    <update id="updateSensor">
+        UPDATE tb_tank
+        SET temperature = #{temperature},
+            water_level = #{waterLevel},
+            updated_at  = NOW()
+        WHERE tank_id = #{tankId}
+    </update>
+
+    <select id="findDailyStockInVolumeByTankId" resultType="map">
+        SELECT s.in_date AS metricDate,
+               COALESCE(SUM(s.in_volume), 0) AS metricValue
+        FROM tb_stock_in s
+        WHERE s.tank_id = #{tankId}
+          AND s.in_date BETWEEN #{from} AND #{to}
+        GROUP BY s.in_date
+        ORDER BY s.in_date ASC
+    </select>
+
+    <select id="findDailySoldVolumeByTankId" resultType="map">
+        SELECT DATE(t.tx_datetime) AS metricDate,
+               COALESCE(SUM(t.liter), 0) AS metricValue
+        FROM tb_transaction t
+        WHERE t.tank_id = #{tankId}
+          AND DATE(t.tx_datetime) BETWEEN #{from} AND #{to}
+        GROUP BY DATE(t.tx_datetime)
+        ORDER BY DATE(t.tx_datetime) ASC
+    </select>
+
+    <select id="findDailyAdjustmentVolumeByTankId" resultType="map">
+        SELECT a.adj_date AS metricDate,
+               COALESCE(SUM(a.diff_volume), 0) AS metricValue
+        FROM tb_stock_adjustment a
+        WHERE a.tank_id = #{tankId}
+          AND a.adj_date BETWEEN #{from} AND #{to}
+        GROUP BY a.adj_date
+        ORDER BY a.adj_date ASC
+    </select>
+
+    <insert id="upsertDailyLevel">
+        INSERT INTO tb_tank_daily_level (
+            tank_id,
+            level_date,
+            end_volume_liters,
+            source
+        ) VALUES (
+            #{tankId},
+            #{levelDate},
+            #{endVolumeLiters},
+            #{source}
+        )
+        ON DUPLICATE KEY UPDATE
+            end_volume_liters = VALUES(end_volume_liters),
+            source = VALUES(source),
+            updated_at = NOW()
+    </insert>
+
+    <select id="findDailyLevelsByTankAndDateRange" resultType="map">
+        SELECT level_date AS metricDate,
+               end_volume_liters AS metricValue
+        FROM tb_tank_daily_level
+        WHERE tank_id = #{tankId}
+          AND level_date BETWEEN #{from} AND #{to}
+        ORDER BY level_date ASC
+    </select>
+
+    <select id="findLatestDailyLevelEndVolume" resultType="java.math.BigDecimal">
+        SELECT end_volume_liters
+        FROM tb_tank_daily_level
+        WHERE tank_id = #{tankId}
+        ORDER BY level_date DESC
+        LIMIT 1
+    </select>
+
+    <select id="findLatestDailyLevelEndVolumeBefore" resultType="java.math.BigDecimal">
+        SELECT end_volume_liters
+        FROM tb_tank_daily_level
+        WHERE tank_id = #{tankId}
+          AND level_date &lt; #{beforeDate}
+        ORDER BY level_date DESC
+        LIMIT 1
+    </select>
+
+    <delete id="deleteExcelDailyLevelByTankAndDate">
+        DELETE FROM tb_tank_daily_level
+        WHERE tank_id = #{tankId}
+          AND level_date = #{levelDate}
+          AND source = 'EXCEL'
+    </delete>
+
+</mapper>
