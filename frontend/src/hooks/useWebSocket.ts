@@ -19,7 +19,7 @@ export function useWebSocket({ onStockUpdate, onAlert }: UseWebSocketOptions) {
       reconnectDelay: 5000,
       onConnect: () => {
         // 모든 탱크 재고 업데이트 구독
-        stompClient.subscribe('/topic/stock/#', (message) => {
+        stompClient.subscribe('/topic/stock/*', (message) => {
           if (onStockUpdate) {
             const data: StockUpdateMessage = JSON.parse(message.body);
             onStockUpdate(data);
