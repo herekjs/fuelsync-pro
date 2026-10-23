@@ -81,7 +81,7 @@ export default function PriceSimulatorPage() {
           </div>
           <div>
             <label className="label">목표 마진율 (%)</label>
-            <input type="number" required min="0.1" max="100" step="0.1" value={form.targetMarginRate}
+            <input type="number" required min="0.1" max="99.99" step="0.1" value={form.targetMarginRate}
               onChange={(e) => setForm({ ...form, targetMarginRate: e.target.value })}
               className="input" />
           </div>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { dashboardApi } from '../services/api';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { showTankAlert } from '../utils/tankAlert';
 import TankGauge from '../components/tanks/TankGauge';
 import ExcelUploadWidget from '../components/dashboard/ExcelUploadWidget';
 import SalesChartsSection from '../components/dashboard/SalesChartsSection';
@@ -48,6 +49,7 @@ export default function Dashboard() {
         };
       });
     }, []),
+    onAlert: showTankAlert,
   });
 
   if (loading) {

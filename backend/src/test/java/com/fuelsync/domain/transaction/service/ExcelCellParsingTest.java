@@ -95,11 +95,27 @@ class ExcelCellParsingTest {
             assertNull(parse(m, text("")));
             assertNull(parse(m, text("-")));
             assertNull(parse(m, text("abc")));
-            assertNull(parse(m, text("1,234L")));
+            assertNull(parse(m, text("L1,234")));
+            assertNull(parse(m, text("1,2x34")));
             Cell bool = row.createCell(col++);
             bool.setCellValue(true);
             assertNull(parse(m, bool));
         }
+    }
+
+    @Test
+    void allParsers_readNumbersWithTrailingUnit() {
+        for (String m : new String[]{"parseLiterCell", "parsePriceCell", "parseSignedAdjLiter"}) {
+            col = 0;
+            row = wb.getSheetAt(0).createRow(3);
+            assertDecimal("1234", parse(m, text("1,234L")));
+            assertDecimal("1234", parse(m, text("1,234 l")));
+            assertDecimal("12.5", parse(m, text("12.5 리터")));
+            assertDecimal("1500", parse(m, text("1,500원")));
+            assertDecimal("100000", parse(m, text("1e5")));
+        }
+        assertDecimal("-5", parse("parseSignedAdjLiter", text("-5L")));
+        assertNull(parse("parseLiterCell", text("-5L")));
     }
 
     // ----- 파서별 부호 규칙 -----

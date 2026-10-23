@@ -260,6 +260,16 @@ export interface StockUpdateMessage {
   status: TankStatus;
 }
 
+/** /topic/alert 로 오는 탱크 상태(주의·위험) 알림 */
+export interface StockAlertMessage {
+  tankId: number;
+  tankName: string;
+  fuelType: FuelType;
+  status: TankStatus;
+  currentVolume: number;
+  fillRatio: number;
+}
+
 export interface TankDailyRemainingPoint {
   date: string;
   inVolume: number;

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { tankApi, stockInApi } from '../services/api';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { showTankAlert } from '../utils/tankAlert';
 import StatusBadge from '../components/common/StatusBadge';
 import ReactApexChart from 'react-apexcharts';
 import dayjs from 'dayjs';
@@ -95,6 +96,7 @@ export default function TankDetailPage() {
         );
       }
     }, [tankId]),
+    onAlert: showTankAlert,
   });
 
   if (loading) {

@@ -2,6 +2,7 @@ package com.fuelsync.domain.price.dto;
 
 import com.fuelsync.domain.price.model.PriceHistory;
 import com.fuelsync.domain.tank.model.Tank;
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
@@ -21,7 +22,11 @@ public class PriceDto {
     public record SimulateRequest(
             @NotNull Tank.FuelType fuelType,
             @NotNull @DecimalMin("0.01") BigDecimal avgBuyPrice,
-            @NotNull @DecimalMin("0.01") BigDecimal targetMarginRate,
+            // 판매가 기준 마진율이라 100 이상이면 권장가 계산이 불가능하다(÷0 / 음수).
+            @NotNull
+            @DecimalMin("0.01")
+            @DecimalMax(value = "99.99", message = "마진율은 100 미만이어야 합니다.")
+            BigDecimal targetMarginRate,
             BigDecimal competitorAvgPrice
     ) {}
 

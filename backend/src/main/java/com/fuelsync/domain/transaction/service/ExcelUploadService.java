@@ -45,6 +45,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -65,6 +67,8 @@ public class ExcelUploadService {
     private static final BigDecimal DEFAULT_GAS_UNIT = new BigDecimal("1600.00");
     private static final BigDecimal DEFAULT_DIESEL_UNIT = new BigDecimal("1450.00");
     private static final DataFormatter DATA_FORMATTER = new DataFormatter();
+    /** 숫자 뒤에 단위 글자(L, 리터, 원 등)만 붙은 문자열: "1234L", "12.5 리터" */
+    private static final Pattern NUMBER_WITH_UNIT = Pattern.compile("^([+-]?\\d+(?:\\.\\d+)?)\\s*[A-Za-zℓ가-힣]+$");
     private static final List<DateTimeFormatter> DATE_FORMATTERS = List.of(
             DateTimeFormatter.ISO_LOCAL_DATE,
             DateTimeFormatter.ofPattern("yyyy.MM.dd"),
@@ -1050,12 +1054,24 @@ public class ExcelUploadService {
         }
     }
 
-    /** 쉼표를 제거하고 숫자로 변환. 빈 문자열·"-"는 null, 숫자가 아니면 NumberFormatException. */
+    /**
+     * 쉼표를 제거하고 숫자로 변환. 빈 문자열·"-"는 null.
+     * 숫자 뒤에 붙은 단위 글자("1,234L", "12.5 리터", "1500원")는 떼고 읽는다.
+     * 그 밖에 숫자가 아니면 NumberFormatException.
+     */
     private Double parseNumericText(String raw) {
         String s = raw.replace(",", "").trim();
         if (s.isEmpty() || "-".equals(s)) {
             return null;
         }
-        return Double.parseDouble(s);
+        try {
+            return Double.parseDouble(s);
+        } catch (NumberFormatException e) {
+            Matcher withUnit = NUMBER_WITH_UNIT.matcher(s);
+            if (withUnit.matches()) {
+                return Double.parseDouble(withUnit.group(1));
+            }
+            throw e;
+        }
     }
 }
