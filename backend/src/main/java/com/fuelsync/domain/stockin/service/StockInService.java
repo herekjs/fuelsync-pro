@@ -64,15 +64,7 @@ public class StockInService {
         stockInMapper.insert(stockIn);
         log.info("[StockIn] create inId={}, tankId={}, volume={}L, price={}", stockIn.getInId(), tank.getTankId(), request.inVolume(), request.buyPrice());
 
-        stockEventPublisher.publishStockUpdate(new StockEventPublisher.StockUpdateMessage(
-                tank.getTankId(),
-                tank.getTankName(),
-                tank.getFuelType().name(),
-                tank.getCurrentVolume().doubleValue(),
-                tank.getMaxCapacity().doubleValue(),
-                tank.getFillRatio().doubleValue(),
-                tank.getStatus().name()
-        ));
+        stockEventPublisher.publishTankChange(tank);
 
         return StockInDto.Response.from(stockIn);
     }

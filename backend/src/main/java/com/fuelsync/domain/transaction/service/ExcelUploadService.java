@@ -14,6 +14,7 @@ import com.fuelsync.domain.tank.mapper.TankMapper;
 import com.fuelsync.domain.tank.model.Tank;
 import com.fuelsync.domain.transaction.mapper.TransactionMapper;
 import com.fuelsync.domain.transaction.model.Transaction;
+import com.fuelsync.websocket.StockEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
@@ -77,6 +78,7 @@ public class ExcelUploadService {
     private final ExcelUploadLogMapper excelUploadLogMapper;
     private final StockInMapper stockInMapper;
     private final AdjustmentService adjustmentService;
+    private final StockEventPublisher stockEventPublisher;
 
     @Transactional(rollbackFor = Exception.class)
     public ExcelUploadResult uploadExcel(MultipartFile file, boolean incrementalOnly, boolean alignOpeningFromExcel) {
@@ -552,6 +554,12 @@ public class ExcelUploadService {
         if (simulation.dieselDailyLevelUpserted()) {
             dieselTank = syncCurrentVolumeFromLatestDailyLevel(dieselTank);
         }
+
+        // 업로드가 잔량을 바꾸므로 커밋 후 최종 탱크 상태를 구독자에게 한 번씩 알린다.
+        stockEventPublisher.publishTankChange(
+                tankMapper.findById(simulation.gasTankId()).orElse(gasTank));
+        stockEventPublisher.publishTankChange(
+                tankMapper.findById(simulation.dieselTankId()).orElse(dieselTank));
 
         int chunk = 500;
         for (int i = 0; i < rawRows.size(); i += chunk) {

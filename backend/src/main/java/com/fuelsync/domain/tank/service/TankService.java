@@ -161,25 +161,7 @@ public class TankService {
         log.info("[Tank] inventory update tankId={}, maxCapacity={}L, currentVolume={}L, status={}",
                 tankId, tank.getMaxCapacity(), tank.getCurrentVolume(), tank.getStatus());
 
-        stockEventPublisher.publishStockUpdate(new StockEventPublisher.StockUpdateMessage(
-                tank.getTankId(),
-                tank.getTankName(),
-                tank.getFuelType().name(),
-                tank.getCurrentVolume().doubleValue(),
-                tank.getMaxCapacity().doubleValue(),
-                tank.getFillRatio().doubleValue(),
-                tank.getStatus().name()
-        ));
-        if (tank.getStatus() != Tank.TankStatus.NORMAL) {
-            stockEventPublisher.publishAlert(new StockEventPublisher.AlertMessage(
-                    tank.getTankId(),
-                    tank.getTankName(),
-                    tank.getFuelType().name(),
-                    tank.getStatus().name(),
-                    tank.getCurrentVolume().doubleValue(),
-                    tank.getFillRatio().doubleValue()
-            ));
-        }
+        stockEventPublisher.publishTankChange(tank);
         return TankDto.Response.from(tank);
     }
 

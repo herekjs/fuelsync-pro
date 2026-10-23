@@ -8,6 +8,7 @@ import com.fuelsync.domain.stockin.mapper.StockInMapper;
 import com.fuelsync.domain.tank.mapper.TankMapper;
 import com.fuelsync.domain.tank.model.Tank;
 import com.fuelsync.domain.tank.service.TankService;
+import com.fuelsync.websocket.StockEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ public class AdjustmentService {
     private final StockInMapper stockInMapper;
     private final TankService tankService;
     private final TankMapper tankMapper;
+    private final StockEventPublisher stockEventPublisher;
 
     public List<AdjustmentDto.Response> findByPeriod(LocalDate from, LocalDate to) {
         return adjustmentMapper.findByPeriod(from, to)
@@ -52,7 +54,7 @@ public class AdjustmentService {
                     FuelSyncException.Adjustment.DUPLICATE,
                     "해당 날짜에 동일 탱크의 재고 보정이 이미 존재합니다.");
         }
-        return insertAdjustment(request, StockAdjustment.InputType.WEB);
+        return insertAdjustment(request, StockAdjustment.InputType.WEB, true);
     }
 
     public boolean existsByTankAndDate(Long tankId, LocalDate adjDate) {
@@ -68,7 +70,8 @@ public class AdjustmentService {
         if (adjustmentMapper.existsByTankIdAndAdjDate(request.tankId(), request.adjDate())) {
             return Optional.empty();
         }
-        return Optional.of(insertAdjustment(request, StockAdjustment.InputType.EXCEL));
+        // 엑셀 업로드는 전체가 끝난 뒤 탱크 상태를 한 번만 발행하므로 여기서는 발행하지 않는다.
+        return Optional.of(insertAdjustment(request, StockAdjustment.InputType.EXCEL, false));
     }
 
     /** 통합 엑셀 덮어쓰기 시 해당 일자·탱크의 엑셀 재고 조정만 삭제. 부모 트랜잭션에 반드시 참여합니다. */
@@ -79,7 +82,8 @@ public class AdjustmentService {
 
     private AdjustmentDto.Response insertAdjustment(
             AdjustmentDto.CreateRequest request,
-            StockAdjustment.InputType inputType) {
+            StockAdjustment.InputType inputType,
+            boolean publishTankChange) {
         Tank tank = tankService.getTankForUpdateOrThrow(request.tankId());
 
         BigDecimal diffVolume = request.physicalStock()
@@ -113,6 +117,9 @@ public class AdjustmentService {
         }
         if (diffVolume.compareTo(BigDecimal.ZERO) != 0) {
             tankMapper.updateVolume(tank);
+            if (publishTankChange) {
+                stockEventPublisher.publishTankChange(tank);
+            }
         }
 
         log.info("[Adjustment] tankId={}, inputType={}, diffVolume={}L, diffAmount={}원",

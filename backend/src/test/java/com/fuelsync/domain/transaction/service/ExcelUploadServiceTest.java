@@ -16,6 +16,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import com.fuelsync.websocket.StockEventPublisher;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -58,6 +59,8 @@ class ExcelUploadServiceTest {
     private StockInMapper stockInMapper;
     @Mock
     private AdjustmentService adjustmentService;
+    @Mock
+    private StockEventPublisher stockEventPublisher;
 
     @InjectMocks
     private ExcelUploadService excelUploadService;
@@ -102,6 +105,9 @@ class ExcelUploadServiceTest {
         assertFalse(Boolean.TRUE.equals(row.getDieselStockInInserted()));
         assertFalse(Boolean.TRUE.equals(row.getDieselSaleInserted()));
         verify(excelUploadLogMapper).updateBatchCounts(99L, 1, 1, 1);
+        // 업로드 결과는 두 탱크 각각 한 번씩만 발행한다.
+        verify(stockEventPublisher).publishTankChange(gasTank);
+        verify(stockEventPublisher).publishTankChange(dieselTank);
     }
 
     @Test

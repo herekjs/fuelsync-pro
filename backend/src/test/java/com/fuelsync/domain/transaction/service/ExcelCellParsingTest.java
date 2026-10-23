@@ -30,7 +30,7 @@ class ExcelCellParsingTest {
         Sheet sheet = wb.createSheet();
         row = sheet.createRow(0);
         evaluator = wb.getCreationHelper().createFormulaEvaluator();
-        service = new ExcelUploadService(null, null, null, null, null, null);
+        service = new ExcelUploadService(null, null, null, null, null, null, null);
         col = 0;
     }
 

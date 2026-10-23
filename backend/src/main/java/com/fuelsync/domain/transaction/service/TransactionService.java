@@ -72,31 +72,8 @@ public class TransactionService {
         transactionMapper.insert(tx);
         log.info("[Transaction] create txId={}, tankId={}, liter={}L", tx.getTxId(), tank.getTankId(), request.liter());
 
-        publishStockUpdate(tank);
+        stockEventPublisher.publishTankChange(tank);
 
         return TransactionDto.Response.from(tx);
-    }
-
-    private void publishStockUpdate(Tank tank) {
-        stockEventPublisher.publishStockUpdate(new StockEventPublisher.StockUpdateMessage(
-                tank.getTankId(),
-                tank.getTankName(),
-                tank.getFuelType().name(),
-                tank.getCurrentVolume().doubleValue(),
-                tank.getMaxCapacity().doubleValue(),
-                tank.getFillRatio().doubleValue(),
-                tank.getStatus().name()
-        ));
-
-        if (tank.getStatus() != Tank.TankStatus.NORMAL) {
-            stockEventPublisher.publishAlert(new StockEventPublisher.AlertMessage(
-                    tank.getTankId(),
-                    tank.getTankName(),
-                    tank.getFuelType().name(),
-                    tank.getStatus().name(),
-                    tank.getCurrentVolume().doubleValue(),
-                    tank.getFillRatio().doubleValue()
-            ));
-        }
     }
 }
